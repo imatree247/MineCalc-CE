@@ -1,5 +1,5 @@
 # MINECALC----Minecraft-for-the-TI-84-Plus-CE
-<video src="maintrailer.mp4" controls width="100%" poster="assets/thumbnail.png">
+<video src="[maintrailer.mp4](https://github.com/imatree247/MineCalc----Minecraft-for-the-TI-84-Plus-CE/blob/main/maintrailer.mp4)" controls width="100%" poster="assets/thumbnail.png">
   Your browser does not support the video tag.
 </video>
 As the name sugests, this is a game similar to Minecraft but instead designed to run on the TI 84 Plus CE graphing calculator. It is coded in C++ using the C/C++ TI 84 Plus CE Toolchain (CEdev) as well as a little bit of assembly. It was tested using the CEmu calculator emulator. This code works for the TI 84 Plus CE Python Edition as well.
