@@ -1,0 +1,44 @@
+# 1. Skip palette generation (since we are using system default xlibc)
+
+# 2. Define how images are converted
+converts:
+  - name: sprites_gfx
+    palette: xlibc      # Forces the built-in system palette
+    #compress: zx7
+    transparent-color-index: 26
+    images:
+      - woodpic.png
+      - stick.png
+      - stonepic.png
+      - ironpic.png
+      - goldpic.png
+      - diamondpic.png
+      - netheritepic.png
+      - woodsword.png
+      - stonesword.png
+      - goldsword.png
+      - ironsword.png
+      - diamondsword.png
+      - ironingot.png
+      - goldingot.png
+      - emptyfurnaceflames.png
+      - furnaceflames1.png
+      - furnaceflames2.png
+      - furnaceflames3.png
+      - furnaceflames4.png
+      - furnaceflames5.png
+      - rawmutton.png
+      - cookedmutton.png
+      - heart.png
+      - hunger.png
+      - rottenflesh.png
+
+# 3. Define the final AppVar output file
+outputs:
+  - type: appvar
+    name: MNCFTIMG         # AppVar file name on the calculator (max 8 chars)
+    include-file: gfx.h  # Generated C header for sprite pointers
+    source-format: c      # Generates C headers/pointers to access data
+    source-init: true     # Auto-generates the pointer mapping function
+    converts:
+      - sprites_gfx

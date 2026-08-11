@@ -1,0 +1,165 @@
+	section	.text,"ax",@progbits
+	assume	adl = 1
+	section	.text,"ax",@progbits
+	public	_MNCFTIMG_init
+_MNCFTIMG_init:
+	push	ix
+	ld	ix, 0
+	add	ix, sp
+	lea	hl, ix - 4
+	ld	sp, hl
+	ld	hl, _.str
+	ld	de, _.str.1
+	xor	a, a
+	ld	(ix - 1), a
+	push	de
+	push	hl
+	call	_ti_Open
+	ld	e, a
+	ld	hl, 6
+	add	hl, sp
+	ld	sp, hl
+	or	a, a
+	jp	z, BB0_2
+	ld	a, 1
+	ld	(ix - 1), a
+	push	de
+	ld	(ix - 4), de
+	call	_ti_GetDataPtr
+	pop	de
+	ld	iy, (_MNCFTIMG_appvar)
+	lea	de, iy
+	or	a, a
+	sbc	hl, de
+	push	hl
+	pop	de
+	add	iy, de
+	ld	(_MNCFTIMG_appvar), iy
+	ld	hl, (_MNCFTIMG_appvar+3)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+3), hl
+	ld	hl, (_MNCFTIMG_appvar+6)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+6), hl
+	ld	hl, (_MNCFTIMG_appvar+9)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+9), hl
+	ld	hl, (_MNCFTIMG_appvar+12)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+12), hl
+	ld	hl, (_MNCFTIMG_appvar+15)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+15), hl
+	ld	hl, (_MNCFTIMG_appvar+18)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+18), hl
+	ld	hl, (_MNCFTIMG_appvar+21)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+21), hl
+	ld	hl, (_MNCFTIMG_appvar+24)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+24), hl
+	ld	hl, (_MNCFTIMG_appvar+27)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+27), hl
+	ld	hl, (_MNCFTIMG_appvar+30)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+30), hl
+	ld	hl, (_MNCFTIMG_appvar+33)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+33), hl
+	ld	hl, (_MNCFTIMG_appvar+36)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+36), hl
+	ld	hl, (_MNCFTIMG_appvar+39)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+39), hl
+	ld	hl, (_MNCFTIMG_appvar+42)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+42), hl
+	ld	hl, (_MNCFTIMG_appvar+45)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+45), hl
+	ld	hl, (_MNCFTIMG_appvar+48)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+48), hl
+	ld	hl, (_MNCFTIMG_appvar+51)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+51), hl
+	ld	hl, (_MNCFTIMG_appvar+54)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+54), hl
+	ld	hl, (_MNCFTIMG_appvar+57)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+57), hl
+	ld	hl, (_MNCFTIMG_appvar+60)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+60), hl
+	ld	hl, (_MNCFTIMG_appvar+63)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+63), hl
+	ld	hl, (_MNCFTIMG_appvar+66)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+66), hl
+	ld	hl, (_MNCFTIMG_appvar+69)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+69), hl
+	ld	hl, (_MNCFTIMG_appvar+72)
+	add	hl, de
+	ld	(_MNCFTIMG_appvar+72), hl
+	ld	hl, (ix - 4)
+	push	hl
+	call	_ti_Close
+	pop	hl
+BB0_2:
+	ld	a, (ix - 1)
+	ld	sp, ix
+	pop	ix
+	ret
+	section	.text,"ax",@progbits
+
+	section	.data,"aw",@progbits
+	public	_MNCFTIMG_appvar
+_MNCFTIMG_appvar:
+	dl	0
+	dl	902
+	dl	1804
+	dl	2706
+	dl	3608
+	dl	4510
+	dl	5412
+	dl	6314
+	dl	7216
+	dl	8118
+	dl	9020
+	dl	9922
+	dl	10824
+	dl	11726
+	dl	12628
+	dl	13030
+	dl	13432
+	dl	13834
+	dl	14236
+	dl	14638
+	dl	15040
+	dl	15972
+	dl	16874
+	dl	17116
+	dl	17358
+
+	section	.rodata,"a",@progbits
+	private	_.str
+_.str:
+	db	"MNCFTIMG", 0
+
+	section	.rodata,"a",@progbits
+	private	_.str.1
+_.str.1:
+	db	"r", 0
+
+	ident	"clang version 15.0.7 (https://github.com/CE-Programming/llvm-project 31b787336940cbc96d054033c3d843f344507042)"
+	extern	__Unwind_SjLj_Register
+	extern	__Unwind_SjLj_Unregister
+	extern	_ti_Open
+	extern	_ti_GetDataPtr
+	extern	_ti_Close
