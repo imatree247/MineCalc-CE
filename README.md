@@ -1,4 +1,5 @@
 # MINECALC----Minecraft-for-the-TI-84-Plus-CE
+![Demo 1](maintrailer.mp4)
 As the name sugests, this is a game similar to Minecraft but instead designed to run on the TI 84 Plus CE graphing calculator. It is coded in C++ using the C/C++ TI 84 Plus CE Toolchain (CEdev) as well as a little bit of assembly. It was tested using the CEmu calculator emulator. This code works for the TI 84 Plus CE Python Edition as well.
 
 So, I bet you are wondering, how close to Minecraft is this game? This game, unlike pretty much every other Minecraft game for the calculator, is fully 3D from the first person perspective. It has a render distance of 16 blocks (taxicab/Manhattan distance, so looks like a diamond), and runs at an average of 7 fps, although the fps can vary depending on how much open space you're looking at. Sadly, in order to prioritize speed, it runs at 1/8th resolution (but it is Minecraft, do pixels really matter? :) ).
