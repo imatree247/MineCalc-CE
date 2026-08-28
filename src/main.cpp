@@ -1,5 +1,4 @@
-
-   #include <graphx.h>
+#include <graphx.h>
 #include <ti/screen.h>
 #include <ti/getcsc.h>
 #include <ti/vars.h>    
@@ -63,21 +62,8 @@ M  I  N  E  C  R  A  F  T
 /*
 VD 15 (medium view distance):
 
-	res 10 = 7.5 fps
-	res 8  = 5 fps
-	res 5  = 1.8 fps
-	res 4  = 1.2 fps
-	res 2  = 1/3 fps
-	res 1  = 1/12 fps
-	
-VD 8 (low view distance):
-
-	res 10 = 10 fps
-	res 8  = 6.4 fps
-	res 5  = 2.7 fps
-	res 4  = 1.7 fps
-	res 2  = 1/2 fps
-	res 1  = 1/9 fps
+	res 8  = 7.5 fps
+	res 5  = 3 fps
 */
 #define AVERAGEFPS 7
 //#define BG_COLOR 191
@@ -109,12 +95,12 @@ uint8_t BG_COLOR=125;
 #define SNOW 13
 #define NETHERRACK 14
 
-#define block_num 38
+#define block_num 42
 #define reg_block_num 15
 #define item_num 18
 #define RECIPIENUM 16
 
-#define invenblocknum (TEXTURENUM+reg_block_num)
+#define invenblocknum (TEXTURENUM+reg_block_num+FLOORNUM)
 
 #define WOODPIC (invenblocknum+1)
 #define STONEPIC (invenblocknum+2)
@@ -134,45 +120,52 @@ uint8_t BG_COLOR=125;
 #define COOKEDMUTTON (invenblocknum+16)
 #define ROTTENFLESH (invenblocknum+17)
 
-#define CRAFTTABLE (reg_block_num+1)
-#define FURNACE (reg_block_num+2)
-#define PLANKS (reg_block_num+3)
-#define BEDTOP (reg_block_num+4)
-#define GLASS (reg_block_num+5)
-#define DOORTOPOPEN (reg_block_num+6)
-#define DOORBOTTOMOPEN (reg_block_num+7)
-#define DOORTOPCLOSED (reg_block_num+8)
-#define DOORBOTTOMCLOSED (reg_block_num+9)
-#define MAGMABLOCK (reg_block_num+10)
-#define FIRE (reg_block_num+11)
-#define SANDSTONE (reg_block_num+12)
-#define CACTUS (reg_block_num+13)
+
+#define FLOORNUM 3
+#define FLOORVOXELS reg_block_num                 // last id that is NOT a floor voxel (15)
+
+#define SNOWCARPET (FLOORVOXELS+1)                // 16
+#define REDSTONEDUSTUNLIT (FLOORVOXELS+2)          // 17
+#define REDSTONEDUSTLIT (FLOORVOXELS+3)            // 18
+
+#define FLOORVOXELSEND REDSTONEDUSTLIT             // last floor id (18)
+static uint8_t floorcolorsconst[]={255,96,224};
+uint8_t* floorcolors=floorcolorsconst-(FLOORVOXELS+1);
+
+#define CRAFTTABLE (FLOORVOXELSEND+1)              // 19
+#define FURNACE (FLOORVOXELSEND+2)
+#define PLANKS (FLOORVOXELSEND+3)
+#define BEDTOP (FLOORVOXELSEND+4)
+#define GLASS (FLOORVOXELSEND+5)
+#define DOORTOPOPEN (FLOORVOXELSEND+6)
+#define DOORBOTTOMOPEN (FLOORVOXELSEND+7)
+#define DOORTOPCLOSED (FLOORVOXELSEND+8)
+#define DOORBOTTOMCLOSED (FLOORVOXELSEND+9)
+#define MAGMABLOCK (FLOORVOXELSEND+10)
+#define FIRE (FLOORVOXELSEND+11)
+#define SANDSTONE (FLOORVOXELSEND+12)
+#define CACTUS (FLOORVOXELSEND+13)                 // 31
 
 #define TEXTURENUM 13
 
-/*
-#define SNOWCARPET (reg_block_num+TEXTURENUM-FLOORNUM+1)
 
 
-#define FLOORNUM 1
-#define FLOORVOXELS (reg_block_num+TEXTURENUM-FLOORNUM)
 
 
-static uint8_t floorcolorsconst[]={255};
-uint8_t* floorcolors=floorcolorsconst-FLOORVOXELS;
-*/
 
 
-#define SKELETOPX (reg_block_num+TEXTURENUM+1)
-#define SKELETOPZ (reg_block_num+TEXTURENUM+2)
-#define SKELEBOTTOM (reg_block_num+TEXTURENUM+3)
-#define SHEEPFACEX (reg_block_num+TEXTURENUM+4)
-#define SHEEPFACEZ (reg_block_num+TEXTURENUM+5)
-#define SHEEPBACKX (reg_block_num+TEXTURENUM+6)
-#define SHEEPBACKZ (reg_block_num+TEXTURENUM+7)
-#define ZOMBIETOPX (reg_block_num+TEXTURENUM+8)
-#define ZOMBIETOPZ (reg_block_num+TEXTURENUM+9)
-#define ZOMBIELEGS (reg_block_num+TEXTURENUM+10)
+
+
+#define SKELETOPX (reg_block_num+FLOORNUM+TEXTURENUM+1)
+#define SKELETOPZ (reg_block_num+FLOORNUM+TEXTURENUM+2)
+#define SKELEBOTTOM (reg_block_num+FLOORNUM+TEXTURENUM+3)
+#define SHEEPFACEX (reg_block_num+FLOORNUM+TEXTURENUM+4)
+#define SHEEPFACEZ (reg_block_num+FLOORNUM+TEXTURENUM+5)
+#define SHEEPBACKX (reg_block_num+FLOORNUM+TEXTURENUM+6)
+#define SHEEPBACKZ (reg_block_num+FLOORNUM+TEXTURENUM+7)
+#define ZOMBIETOPX (reg_block_num+FLOORNUM+TEXTURENUM+8)
+#define ZOMBIETOPZ (reg_block_num+FLOORNUM+TEXTURENUM+9)
+#define ZOMBIELEGS (reg_block_num+FLOORNUM+TEXTURENUM+10)
 
 #define MOBNUM (10)
 #define MOBSTART SKELETOPX
@@ -688,7 +681,14 @@ inline int ray_trace_point(const int pixelx,const int pixely, uint8_t* w, flint 
 }
 /** colors for solid blocks**/
 //                                              NONE,grass,stone,wood,leaf,border,obsidian,iron,gold,diamond,sand,wool,snowgrass,snow,netherack
-static const uint8_t hardness[block_num]=      {0,  1,    2,    1,    0,      255,    5,    3,    4,      4,    1, 1,1,1,2, /*textures*/0,1, 2,1,1,1,1,1,1,2,2,255,2,1,/*mobs*/255,255,255,255,255,255,255};
+static const uint8_t hardness[block_num]=
+{
+	/*id 0-14, reg blocks*/    0,1,2,1,0,255,5,3,4,4,1,1,1,1,2,
+	/*id 15, unused*/          0,
+	/*id 16-18, floor*/        0,0,0,   // SNOWCARPET, REDSTONEDUSTUNLIT, REDSTONEDUSTLIT
+	/*id 19-31, textures*/     1,2,1,1,1,1,1,1,2,2,255,2,1,
+	/*id 32-41, mobs*/         255,255,255,255,255,255,255,255,255,255
+};
 static uint8_t colors[(reg_block_num + 1) << 2] = {
     /* Block ID:                 0    1    2    3    4         5    6    7    8    9   10   11   12   13   14  15 */
     /*            Block Name:  none grss stne wood leaf border obsd iron gold dmnd sand wool sgrs snow nthr guard */
@@ -1088,8 +1088,10 @@ static const uint8_t sandstonetop[64]=
 
 
 // this v v v  is an array storing what sides of texture blocks go with what textures ^ ^ ^
-//syntax is x axis, top, z axis, bottom(maybe).                  crafting table                                             furnace                                             planks                                                               bed top                         glass                               doortopopen                               doorbottomeopen             doortopclosed                         doorbottomclosed                   magmablock                                        fire                             sandstone                                                  cactus                                    skeletontopx                                skeletontopz                    skeletonbottom                                  sheepfacex                    sheepfacez                      sheepbackx                      sheepbackz                                           zombietopx                                                zombietopz                                            zombielegs                  
-static const uint8_t* texturedata[]={planksdarker,craftingtabletop,plankslighter,planksnorm,   cobblestone,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop,          skeletopf,grey,skeletope,clear,    skeletope,grey,skeletopf,clear,  skelebottom,skelebottom,skelebottom,skelebottom,   sheepface,grey,sheepside,grey,   sheepside,grey,sheepface,grey,     sheepback,grey,sheepside,grey,  sheepside,grey,sheepback,grey,     zombieface,zombieheadtop,zombiehead,zombieheadtop,     zombiehead,zombieheadtop,zombieface,zombieheadtop,      zombielegs,zombieheadtop,zombielegs,zombieheadtop};
+static const uint8_t* texturedata[]={
+	clear,clear,clear,clear,  clear,clear,clear,clear,  clear,clear,clear,clear, /*id 16-18: snowcarpet, redstonedustunlit, redstonedustlit - side/bottom transparent, top handled by floorcolors[]*/
+//                  crafting table                                             furnace                                             planks                                                               bed top                         glass                               doortopopen                               doorbottomeopen             doortopclosed                         doorbottomclosed                   magmablock                                        fire                             sandstone                                                  cactus                                    skeletontopx                                skeletontopz                    skeletonbottom                                  sheepfacex                    sheepfacez                      sheepbackx                      sheepbackz                                           zombietopx                                                zombietopz                                            zombielegs                  
+	planksdarker,craftingtabletop,plankslighter,planksnorm,   cobblestone,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop, skeletopf,grey,skeletope,clear,    skeletope,grey,skeletopf,clear,  skelebottom,skelebottom,skelebottom,skelebottom,   sheepface,grey,sheepside,grey,   sheepside,grey,sheepface,grey,     sheepback,grey,sheepside,grey,  sheepside,grey,sheepback,grey,     zombieface,zombieheadtop,zombiehead,zombieheadtop,     zombiehead,zombieheadtop,zombieface,zombieheadtop,      zombielegs,zombieheadtop,zombielegs,zombieheadtop};
 static flint cache [640]={};
 bool is_in_crafting_table=false;
 static int inventory[block_num+item_num]={};
@@ -1206,7 +1208,7 @@ void furnace_stuff(uint8_t* block)//uint8_t* block)//need block because of synta
 		int y=98;
 		int c=0;
 		//inventory[DIAMONDPIC]=1;
-		for(int i=scroll+1; i<reg_block_num+item_num+TEXTURENUM; ++i)//looping through inventory (inventory is an int[block_num+item_num])
+		for(int i=scroll+1; i<invenblocknum+item_num; ++i)//looping through inventory (inventory is an int[block_num+item_num])
 		{
 			if(c>35)
 				break;
@@ -1747,7 +1749,16 @@ void hurtzombie(uint8_t* block)
 }
 
 
-static void (*block_is_usable[])(uint8_t*) ={use_craftingtable,  furnace_stuff, NULL, use_bed,NULL,   use_doorto,use_doorbo,use_doortc,use_doorbc,NULL,NULL,     NULL,NULL,NULL,NULL,NULL,hurtsheep,hurtsheep,hurtsheep,hurtsheep,hurtzombie,hurtzombie,hurtzombie};
+// indexed by (id - (reg_block_num+1)), covers ids SNOWCARPET(16)..ZOMBIELEGS(41)
+static void (*block_is_usable[])(uint8_t*) ={
+	NULL, NULL, NULL,                                                  // 16-18: snowcarpet,redstonedustunlit,redstonedustlit
+	use_craftingtable, furnace_stuff, NULL, use_bed, NULL,             // 19-23: crafttable,furnace,planks,bedtop,glass
+	use_doorto, use_doorbo, use_doortc, use_doorbc,                    // 24-27: doors
+	NULL, NULL, NULL, NULL,                                            // 28-31: magmablock,fire,sandstone,cactus
+	NULL, NULL, NULL,                                                  // 32-34: skeletopx,skeletopz,skelebottom (unimplemented)
+	hurtsheep, hurtsheep, hurtsheep, hurtsheep,                        // 35-38: sheepfacex,sheepfacez,sheepbackx,sheepbackz
+	hurtzombie, hurtzombie, hurtzombie                                 // 39-41: zombietopx,zombietopz,zombielegs
+};
 
 
 void draw_trans_rect_fake(int x,int y, int w, int h,int color)
@@ -1832,6 +1843,7 @@ extern "C" uint8_t* getscratch3();
 extern "C" uint8_t** getrectaddr();
 extern "C" void optomized_raycast_rect_8x8();
 extern "C" void optomized_raycast_rect_5x5();
+
 extern "C" void notfullfillscreen(uint8_t color,uint8_t* screenaddr);
 
 //__attribute__((section(".ramfunc"), noinline))
@@ -1983,26 +1995,27 @@ void raycast_screen()
 				//interesction = rayorg +raydir*(smallest tmax)
 				//uint8_t tcolor;
 				/*
-				if(id>FLOORVOXELS&&id)//like carpets or redstone or pressure plates and stuff
+				if(id<=FLOORVOXELSEND)//like carpets or redstone or pressure plates and stuff
 				{
 					if(tmaxy<tmaxx)
 					{
 						if(tmaxy<tmaxz)
 						{
 							
-							if(tmaxy<0)
+							if(tdy<0)
 							{
-
+								*colortorect=floorcolors[id];
+								#if res == 8
+									optomized_raycast_rect_8x8();
+								#elif res==5
+									optomized_raycast_rect_5x5();
+								#endif
+								continue;
 							}
-							
-							tcolor=255;//floorcolors[id];
-							d=67;
+
 						}
-						else
-							goto start_loop;
 					}
-					else
-						goto start_loop;
+					
 				}
 				*/
 				/** NOTE: mlt32 is actually 24 bit multiplication because I found out it was faster and 
@@ -2791,9 +2804,15 @@ inline void draw_item(int temp,int x,int y,int show_num)
 	{
 		Sprite_16x16to32x32(&blockspritebuffer[temp<<8],&gfx_vbuffer[y][x]);
 	}
+	else if(temp<=FLOORVOXELSEND)//floor block, flat diamond icon
+	{
+		gfx_SetColor(floorcolors[temp]);
+		gfx_FillTriangle(x+7,y+7,x+2,y+28,x+28,y+7);
+		gfx_FillTriangle(x+2,y+28,x+28,y+28,x+28,y+7);
+	}
 	else if(temp<invenblocknum+1)//textured block, 8x8-cached icon
 	{
-		Sprite_8x8to32x32(&texturespritebuffer[(temp-(reg_block_num+1))<<6],&gfx_vbuffer[y][x]);
+		Sprite_8x8to32x32(&texturespritebuffer[(temp-CRAFTTABLE)<<6],&gfx_vbuffer[y][x]);
 	}
 	else//if item
 	{
@@ -2836,14 +2855,20 @@ inline void draw_itemnobuffer(int temp,int x,int y)
 
 	}
 	
+	else if(temp<=FLOORVOXELSEND)//floor block, flat diamond icon
+	{
+		gfx_SetColor(floorcolors[temp]);
+		gfx_FillTriangle(x+7,y+7,x+2,y+28,x+28,y+7);
+		gfx_FillTriangle(x+2,y+28,x+28,y+28,x+28,y+7);
+	}
 	else if(temp<invenblocknum+1)
 	
 	{
 		//dbg_printf("drawing: %d",temp);
 		int ptemp=temp;
-		temp=temp-(reg_block_num+1);
-		int side=recog_text_side[temp];//side
-		int id=(temp<<2)+side;
+		int texidx=temp-CRAFTTABLE;          // 0-based texture index for recog_text_side[]
+		int side=recog_text_side[texidx];    //side
+		int id=((temp-(reg_block_num+1))<<2)+side;   // texturedata[] is anchored at id16 (floor rows included)
 		//dbg_printf("id : %d, temp: %d, side:%d\n",id,temp,side);
 		for(int x2=0; x2<8;++x2)
 		{
@@ -3743,6 +3768,69 @@ void loadnewchunk()
 		is_chunk=false;
 	}
 }
+
+inline bool walk_thru_block(int blockid)
+{
+	if(blockid==0)
+		return true;
+	if(blockid>MOBSTART)
+		return true;
+	if(blockid>reg_block_num&&blockid<FLOORVOXELSEND+1)//if is a floor voxel
+		return true;
+	return false;
+}
+void try_walk(flint dirx, flint dirz)
+{
+	if(randInt(0,100)==0)
+	{
+		playerhunger--;
+		updatehotbar=2;
+	}
+	int nx=(int)(dirx+plx);
+	int nz=(int)(dirz+plz);
+	
+	int iplx=(int)plx;
+	int iply=(int)ply;
+	int iplz=(int)plz;
+	//                                               door
+	if(plx+dirx>30&&chunkx<61)
+	{
+		save_world(wname);
+		chunkx++;
+		loadnewchunk();
+		plx=1;
+	}
+	else if(plx+dirx<1&&chunkx>0)
+	{
+		save_world(wname);
+		chunkx--;
+		loadnewchunk();
+		plx=30;
+	}
+	else if(plz+dirz>=32&&chunkz<61)//z barrier is only on 0 due to helpful properties of flattened arrays
+	{
+		save_world(wname);
+		chunkz++;
+		loadnewchunk();
+		plz=1;
+	}
+	else if(plz+dirz<1&&chunkz>0)
+	{
+		save_world(wname);
+		chunkz--;
+		loadnewchunk();
+		plz=31;
+	}
+	else
+	{
+		if ( (walk_thru_block(vis_map(nx,iply,iplz))&&walk_thru_block(vis_map(nx,iply-1,iplz))) || vis_map(nx,iply,iplz)==DOORTOPOPEN)
+			plx+=dirx;
+		iplx=(int)plx;//updates it
+		if ( (walk_thru_block(vis_map(iplx,iply,nz))&&walk_thru_block(vis_map(iplx,iply-1,nz))) ||vis_map(iplx,iply,nz)==DOORTOPCLOSED)
+			plz+=dirz;
+	}
+}
+
 void gc_before(void)
 {
 	gfx_End();
@@ -3757,7 +3845,6 @@ void gc_after(void)
 }
 
 int main(void){
-	
 	auto *data_ptr = os_GetAppVarData("MNCFTIMG", NULL);
 
 	if (data_ptr == NULL)//no asset file
@@ -4118,11 +4205,11 @@ int main(void){
 				}
 			}
 		}
-		for(int i=reg_block_num+1; i<invenblocknum+1;++i)   // textured blocks: cache at 8x8
+		for(int i=CRAFTTABLE; i<invenblocknum+1;++i)   // textured blocks: cache at 8x8
 		{
 			gfx_FillScreen(0);
 			draw_itemnobuffer(i,0,0);
-			int c=(i-(reg_block_num+1))<<6;
+			int c=(i-CRAFTTABLE)<<6;
 			for(int y=0; y<32; y+=4)
 			{
 				for(int x=0; x<32; x+=4)
@@ -4373,6 +4460,7 @@ int main(void){
 			}
 			
 			//gfx_FillScreen(BG_COLOR); 
+			gfx_Wait();
 			notfullfillscreen(BG_COLOR,&gfx_vbuffer[0][0]);
 			kb_Scan(); // Update the key status
 			if(kb_IsDown(kb_KeyMath))
@@ -4437,68 +4525,10 @@ int main(void){
 					dirz=-1;
 			}
 			//dbg_printf("X: %d, Y: %d, Z: %d\n",(int)plx,(int)ply,(int)plz);
-			if (kb_IsDown(kb_Key2nd)) {
-				if(randInt(0,100)==0)
-				{
-					playerhunger--;
-					updatehotbar=2;
-				}
-				int nx=(int)(dirx+plx);
-				int nz=(int)(dirz+plz);
-				
-				int iplx=(int)plx;
-				int iply=(int)ply;
-				int iplz=(int)plz;
-				//                                               door
-				if(plx+dirx>30&&chunkx<61)
-				{
-					save_world(wname);
-					chunkx++;
-					loadnewchunk();
-					plx=1;
-				}
-				else if(plx+dirx<1&&chunkx>0)
-				{
-					save_world(wname);
-					chunkx--;
-					loadnewchunk();
-					plx=30;
-				}
-				else if(plz+dirz>=32&&chunkz<61)//z barrier is only on 0 due to helpful properties of flattened arrays
-				{
-					save_world(wname);
-					chunkz++;
-					loadnewchunk();
-					plz=1;
-				}
-				else if(plz+dirz<1&&chunkz>0)
-				{
-					save_world(wname);
-					chunkz--;
-					loadnewchunk();
-					plz=31;
-				}
-				else
-				{
-					if ( (vis_map(nx,iply,iplz)==0&&vis_map(nx,iply-1,iplz)==0) || vis_map(nx,iply,iplz)==DOORTOPOPEN)
-						plx+=dirx;
-					iplx=(int)plx;//updates it
-					if ( (vis_map(iplx,iply,nz)==0&&vis_map(iplx,iply-1,nz)==0) ||vis_map(iplx,iply,nz)==DOORTOPCLOSED)
-						plz+=dirz;
-				}
-			}
+			if (kb_IsDown(kb_Key2nd)) 
+				try_walk(dirx,dirz);
 			else if (kb_IsDown(kb_KeyAlpha)) {
-					if(randInt(0,100)==0)
-					{
-						playerhunger--;
-						updatehotbar=2;
-					}
-				int nx=(int)(-dirx+plx);
-				int nz=(int)(-dirz+plz);
-				if ((vis_map(nx,(int)ply,(int)plz)==0&&vis_map(nx,(int)ply-1,(int)plz)==0) || vis_map(nx,(int)ply,(int)plz)==DOORTOPOPEN)
-					plx-=dirx;
-				if ((vis_map((int)plx,(int)ply,nz)==0&&vis_map((int)plx,(int)ply-1,nz)==0) ||vis_map((int)plx,(int)ply,nz)==DOORTOPCLOSED)
-					plz-=dirz;
+				try_walk(-dirx,-dirz);
 			}
 
 			 if(ply>WY-2)
@@ -4589,7 +4619,7 @@ int main(void){
 						scroll=0;
 					dbg_printf("Scroll: %d, Cursor: %d\n",scroll,cursor);
 					int count=0;
-					for (int i=scroll+1;i<reg_block_num+item_num+TEXTURENUM;++i){//drawing inventory. 0 is air.
+					for (int i=scroll+1;i<invenblocknum+item_num;++i){//drawing inventory. 0 is air.
 						
 						if(count>35)
 							break;
@@ -4618,7 +4648,7 @@ int main(void){
 							}
 
 						
-						if(cursor>=reg_block_num+item_num+TEXTURENUM-1)
+						if(cursor>=invenblocknum+item_num-1)
 							{
 								where++;
 								cursor=0;
@@ -5140,16 +5170,16 @@ int main(void){
 			}
 			
 			int temp2=vis_map((int)plx,(int)ply-1,(int)plz);
-			if (temp2)// if feet stuck in ground
+			if (!walk_thru_block(temp2))// if feet stuck in ground
 			{
 				if(!(temp2==DOORBOTTOMCLOSED||temp2==DOORBOTTOMOPEN))//demorganed it!
 					ply+=1;
 			}
-			if (vis_map((int)plx,(int)ply-2,(int)plz)==0||grav<0){
+			if (walk_thru_block(vis_map((int)plx,(int)ply-2,(int)plz))||grav<0){
 				grav+=grav_amount;
 				ply-=grav;
 				temp2=vis_map((int)plx,(int)ply,(int)plz);
-				if (temp2)//if head stuck in wall
+				if (!walk_thru_block(temp2))//if head stuck in wall
 				{
 					if(!(temp2==DOORTOPCLOSED||temp2==DOORTOPOPEN))//not in door
 						ply-=1;
@@ -5174,9 +5204,17 @@ int main(void){
 			
 			raycast_screen();
 			//std::clock_t t2 = std::clock();
-			//dbg_printf("time: %d\n",(t2-t1));
+			/*
+			gfx_SetTextXY(0,100);
+			gfx_PrintString("FPS: ");
+			uint8_t fps=(int)((float)32768/(t2-t1)*10);
+			gfx_PrintInt(fps/10,1);
+			gfx_PrintString(".");
+			gfx_PrintInt(fps%10,1);
+			dbg_printf("time: %d\n",(t2-t1));
+			*/
 			gfx_SetColor(75);
-			gfx_HorizLine_NoClip(0, 184, 320);//For some reason, there is a line here so I patched it ;)
+			gfx_HorizLine_NoClip(0, 184, 320);//For some reason, there is a line here so I "patched" it ;)
 			if(updatehotbar>0)
 			{
 				updatehotbar--;
