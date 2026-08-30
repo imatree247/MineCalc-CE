@@ -55,15 +55,15 @@ M  I  N  E  C  R  A  F  T
 #define VD 15
 //view distance. i recommend between 8 and 20. is measured in taxicab (manhattan) distance from player.
 
-#define res 8
+#define res 5
 //res must be divisible by 320 can be 1,2,4,5,8,10,16,etc. ALSO, IN THE ASSEMBLY, YOU HAVE TO DO STUFF TOO!
 // i recommend 8 for visuals, 10 for speed. maybe 5 for really good visuals but I'd decrease VD.
 //here's a good table for approximate values.
 /*
 VD 15 (medium view distance):
 
-	res 8  = 7.5 fps
-	res 5  = 3 fps
+	res 8  = 12 fps
+	res 5  = 5 fps
 */
 #define AVERAGEFPS 7
 //#define BG_COLOR 191
@@ -1790,51 +1790,149 @@ void draw_trans_rect_fake_less_dark(int x,int y, int w, int h,int color)
 	}
 
 }
-#define RUN_DDA_LOOP(stepx,stepy,stepz)\
+#define CONCAT_(a,b) a##b
+#define CONCAT(a,b) CONCAT_(a,b)
+
+#define RUN_DDA_LOOP_P(stepx,stepy,stepz,pastenum)\
 	_Pragma("clang loop unroll(full)") \
 	for (uint8_t i=0; i<VD;++i)\
 	{\
-		\
 		if (tmaxx<tmaxy){\
-			if (tmaxx<tmaxz){/*tmaxx is smallest*/\
+			if (tmaxx<tmaxz){\
 				curr_block+=stepx;\
 				tmaxx.data+=deltax.data;\
-				if (*curr_block){/* if it is not 0*/\
-				d=0;\
-				goto blocky_stuff;\
+				if (*curr_block){\
+				CONCAT(d,pastenum)=0;\
+				goto CONCAT(blocky_stuff,pastenum);\
 				}\
 			}\
 			else\
-			{/*tmaxx ___ tamxy, so tmaxz*/\
+			{\
 				curr_block+=stepz;\
 				tmaxz.data+=deltaz.data;\
-				if (*curr_block){/* if it is not 0*/\
-				d=2*(reg_block_num+1);\
-				goto blocky_stuff;\
+				if (*curr_block){\
+				CONCAT(d,pastenum)=2*(reg_block_num+1);\
+				goto CONCAT(blocky_stuff,pastenum);\
 				}\
 			}\
 		}\
 		else{\
-			if (tmaxy<tmaxz){/*tmaxy is smallest*/\
+			if (tmaxy<tmaxz){\
 				curr_block+=stepy;\
 				tmaxy.data+=deltay.data;\
-				if (*curr_block){/* if it is not 0*/\
-				d=(reg_block_num+1);\
-				goto blocky_stuff;\
+				if (*curr_block){\
+				CONCAT(d,pastenum)=(reg_block_num+1);\
+				goto CONCAT(blocky_stuff,pastenum);\
 				}\
 			}\
-			else{/*tmaxz again */\
+			else{\
 				curr_block+=stepz;\
 				tmaxz.data+=deltaz.data;\
-				if (*curr_block){/* if it is not 0*/\
-				d=2*(reg_block_num+1);\
-				goto blocky_stuff;\
+				if (*curr_block){\
+				CONCAT(d,pastenum)=2*(reg_block_num+1);\
+				goto CONCAT(blocky_stuff,pastenum);\
 				}\
 			}\
 		}\
+	}
+
+#define TRACE_COLUMN(pastenum)\
+	flint dx;dx.data=((*cx).data-sinxztdz.data);\
+	flint dz;dz.data=((*cz).data+cosxztdz.data);\
+	deltax= inv_tablel[dx.data];\
+	deltaz = inv_tablel[dz.data];\
+	\
+	tmaxx=deltax;\
+	tmaxy=deltay;\
+	tmaxz=deltaz;\
+	\
+	uint8_t quadrant = (dx.data>0) | tdy_bit | ((dz.data > 0)<<2);\
+	\
+	uint8_t* curr_block = w;\
+	static uint8_t CONCAT(d,pastenum);\
+	cx+=res*2;\
+	cz+=res*2;\
+	CONCAT(start_loop,pastenum):\
+	switch(quadrant)\
+	{\
+		case 0: RUN_DDA_LOOP_P(-XJ, -YJ, -1, pastenum); break;\
+		case 1: RUN_DDA_LOOP_P( XJ, -YJ, -1, pastenum); break;\
+		case 2: RUN_DDA_LOOP_P(-XJ,  YJ, -1, pastenum); break;\
+		case 3: RUN_DDA_LOOP_P(XJ,  YJ, -1, pastenum); break;\
+		case 4: RUN_DDA_LOOP_P( -XJ, -YJ,  1, pastenum); break;\
+		case 5: RUN_DDA_LOOP_P(  XJ, -YJ,  1, pastenum); break;\
+		case 6: RUN_DDA_LOOP_P( -XJ,  YJ,  1, pastenum); break;\
+		case 7: RUN_DDA_LOOP_P(  XJ,  YJ,  1, pastenum); break;\
 	}\
-		/*if((uint24_t)(curr_block - w) < WX*WY*WZ)//saying if <0, wrap to big val and if to big is not <*/\
-			
+	*tempval+=res*2;\
+	goto CONCAT(dda_done,pastenum);\
+	CONCAT(blocky_stuff,pastenum):\
+	{\
+	uint8_t id=*curr_block;\
+	uint8_t tcolor;\
+	if (id<reg_block_num+1)\
+	{\
+		tcolor=lcolors[(id)+CONCAT(d,pastenum)];\
+	}\
+	else\
+	{\
+		switch ((uint8_t)CONCAT(d,pastenum)) {\
+			case 0:\
+			{\
+				tmaxx-=deltax;\
+				flint tzf=mlt32(dz,tmaxx)+((int)plz);\
+				flint tyf=mlt32(tdy,tmaxx)+((int)ply);\
+				int tz= (tzf.data&511)>>6;\
+				int ty = (tyf.data >> 3) & 0x38;\
+				tcolor=ltexturedata[id<<2][(tz)+ty];\
+				if (tcolor==26)\
+				{\
+					tmaxx+=deltax;\
+					goto CONCAT(start_loop,pastenum);\
+				}\
+				break;\
+			}\
+			case (reg_block_num+1):\
+			{\
+				tmaxy-=deltay;\
+				flint txf=mlt32(dx,tmaxy)+((int)plx);\
+				flint tzf=mlt32(dz,tmaxy)+((int)plz);\
+				int tx=((txf.data)&511)>>6;\
+				int tz = (tzf.data >> 3) & 0x38;\
+				tcolor=ltexturedata[(id<<2)+1][(tx)+tz];\
+				if (tcolor==26)\
+				{\
+					tmaxy+=deltay;\
+					goto CONCAT(start_loop,pastenum);\
+				}\
+				break;\
+			}\
+			case 2*(reg_block_num+1):\
+			{\
+				tmaxz-=deltaz;\
+				flint txf=mlt32(dx,tmaxz)+((int)plx);\
+				flint tyf=mlt32(tdy,tmaxz)+((int)ply);\
+				int tx=((txf.data)&511)>>6;\
+				int ty = (tyf.data >> 3) & 0x38;\
+				tcolor=ltexturedata[(id<<2)+2][(tx)+ty];\
+				if (tcolor==26)\
+				{\
+					tmaxz+=deltaz;\
+					goto CONCAT(start_loop,pastenum);\
+				}\
+				break;\
+			}\
+		}\
+	}\
+	*colortorect=tcolor;\
+	}\
+	/*#if res == 8\*/\
+		optomized_raycast_rect_5x5();\
+	/*#elif res==5\
+		optomized_raycast_rect_5x5();\
+	#endif\*/\
+	CONCAT(dda_done,pastenum): ;/*if((uint24_t)(curr_block - w) < WX*WY*WZ)//saying if <0, wrap to big val and if to big is not <*/\
+	
 //#define mlt32(a, b) ((int) ( ( (int32_t)(a.data) * (int32_t)(b.data) ) >> shift_by) )
 #define mlt32(a,b) (a*b)
 //#define mlt32(a,b) ([&]{ flint r; r.data=(int)(((int32_t)(a).data*(int32_t)(b).data)>>shift_by); return r; }())
@@ -1845,6 +1943,7 @@ extern "C" void optomized_raycast_rect_8x8();
 extern "C" void optomized_raycast_rect_5x5();
 
 extern "C" void notfullfillscreen(uint8_t color,uint8_t* screenaddr);
+extern "C" void rect8x8complete(uint8_t* screenaddr);
 
 //__attribute__((section(".ramfunc"), noinline))
 void raycast_screen()
@@ -1949,150 +2048,36 @@ void raycast_screen()
 		//dbg_printf("y: %d, addr: %p\n",y, *tempval);
 		//#pragma clang loop unroll_count(5)
 		uint8_t tdy_bit=((tdy.data>0)<<1);
-		for(unsigned int x=0; x<320;x+=res){
+		auto temp=*tempval;
+		for(unsigned int x=0; x<320;x+=res*2){
 
-			flint dx;dx.data=((*cx).data-sinxztdz.data);
-			flint dz;dz.data=((*cz).data+cosxztdz.data);//xz
-			deltax= inv_tablel[dx.data];	
-			// had idx,idy,idz before
-			deltaz = inv_tablel[dz.data];
-			
-			tmaxx=deltax;// dist to next line *deltax. start on int coord, so dist to next line is 1
-			tmaxy=deltay;
-			tmaxz=deltaz;
-			
-			uint8_t quadrant = (dx.data>0) | tdy_bit | ((dz.data > 0)<<2);
-			
-			uint8_t* curr_block = w;
-			static uint8_t d;
-			cx+=res;
-			cz+=res;
-			start_loop:
-			switch(quadrant) 
-			{
-				case 0: RUN_DDA_LOOP(-XJ, -YJ, -1); break; // All negative
-				case 1: RUN_DDA_LOOP( XJ, -YJ, -1); break; // X positive
-				case 2: RUN_DDA_LOOP(-XJ,  YJ, -1); break; // Y positive
-				case 3: RUN_DDA_LOOP(XJ,  YJ, -1); break; // X, Y positive
-				
-				case 4: RUN_DDA_LOOP( -XJ, -YJ,  1); break; // Z positive
-				case 5: RUN_DDA_LOOP(  XJ, -YJ,  1); break; // X, Z positive
-				case 6: RUN_DDA_LOOP( -XJ,  YJ,  1); break; // Y, Z positive
-				case 7: RUN_DDA_LOOP(  XJ,  YJ,  1); break; // All positive
-			}
-			*tempval+=res;
-			continue;
-			blocky_stuff:
-			uint8_t id=*curr_block;
-			uint8_t tcolor;
-			if (id<reg_block_num+1)//normal blocks, faster
-			{
-				//gfx_SetColor();	
-				tcolor=lcolors[(id)+d];
-			}
-			else //textured blocks. slower. 
-			{
-				//interesction = rayorg +raydir*(smallest tmax)
-				//uint8_t tcolor;
-				/*
-				if(id<=FLOORVOXELSEND)//like carpets or redstone or pressure plates and stuff
-				{
-					if(tmaxy<tmaxx)
-					{
-						if(tmaxy<tmaxz)
-						{
-							
-							if(tdy<0)
-							{
-								*colortorect=floorcolors[id];
-								#if res == 8
-									optomized_raycast_rect_8x8();
-								#elif res==5
-									optomized_raycast_rect_5x5();
-								#endif
-								continue;
-							}
-
-						}
-					}
-					
-				}
-				*/
-				/** NOTE: mlt32 is actually 24 bit multiplication because I found out it was faster and 
-				it would be a lot of work to change the name**/
-				switch ((uint8_t)d) {
-					case 0://x
-					{
-						tmaxx-=deltax;
-						
-						flint tzf=mlt32(dz,tmaxx)+((int)plz);
-						flint tyf=mlt32(tdy,tmaxx)+((int)ply);
-						
-						int tz= (tzf.data&511)>>6;
-						int ty = (tyf.data >> 3) & 0x38;//only >>3 because in v v v I'd have to say <<3 anyways...
-						tcolor=ltexturedata[id<<2][(tz)+ty];
-						if (tcolor==26)//transparent
-						{
-							tmaxx+=deltax;					
-							goto start_loop;
-						}
-						break;
-					}
-
-					case (reg_block_num+1)://y
-					{
-						tmaxy-=deltay;
-						//int top=(tdy.data>0);
-						//top=(top<<1);// turns num<0 or num>0 into 0 or 2.
-						//top=0;
-						flint txf=mlt32(dx,tmaxy)+((int)plx);
-						flint tzf=mlt32(dz,tmaxy)+((int)plz);
-						
-						int tx=((txf.data)&511)>>6;
-						int tz = (tzf.data >> 3) & 0x38;
-						tcolor=ltexturedata[(id<<2)+1][(tx)+tz];
-						if (tcolor==26)//transparent
-						{
-							tmaxy+=deltay;					
-							goto start_loop;
-						}
-
-						break;
-					}
-					case 2*(reg_block_num+1)://if d==2. z.
-					{
-						tmaxz-=deltaz;
-						flint txf=mlt32(dx,tmaxz)+((int)plx);
-						flint tyf=mlt32(tdy,tmaxz)+((int)ply);
-						
-						int tx=((txf.data)&511)>>6;
-						int ty = (tyf.data >> 3) & 0x38;
-						
-						tcolor=ltexturedata[(id<<2)+2][(tx)+ty];
-						if (tcolor==26)//transparent
-						{
-							tmaxz+=deltaz;					
-							goto start_loop;
-						}
-						break;
-					}
-				}
-
-											
-			}
-			//gfx_SetColor(tcolor);
-			//gfx_FillRectangle_NoClip(x, y, res, res);
-			//rect_8x8(x,y,tcolor,(uint8_t*)gfx_vbuffer);
-			*colortorect=tcolor;
-			#if res == 8
-				optomized_raycast_rect_8x8();
-			#elif res==5
-				optomized_raycast_rect_5x5();
-			#endif
+			TRACE_COLUMN(0);
 		}
+		auto temp2=*tempval;
+		cx = &cache[0+res];
+		cz = &cache[320+res];
+		*tempval=temp;
+		*tempval+=res;
+		for(unsigned int x=res; x<320;x+=res*2){
+
+			uint8_t color=*(*tempval-1);
+			if(color==*(*tempval+res+1))
+			{
+				*colortorect=color;
+				optomized_raycast_rect_5x5();
+				cx+=res*2;
+				cz+=res*2;
+				//*tempval+=res*2;
+			}
+			else
+			{
+				TRACE_COLUMN(1);
+			}
+		}
+		*tempval=temp2;
 		*tempval+=(320*(res-1));
-			
 	}
+	 //rect8x8complete(&gfx_vbuffer[0][0]);
 }
 void draw_tree(int x, int y, int z)
 {
@@ -5200,11 +5185,11 @@ int main(void){
 			}
 			//dbg_printf("frame!,%d,%d",rotxz,rotyz);
 			
-			//std::clock_t t1 = std::clock();
+			std::clock_t t1 = std::clock();
 			
 			raycast_screen();
-			//std::clock_t t2 = std::clock();
-			/*
+			std::clock_t t2 = std::clock();
+			
 			gfx_SetTextXY(0,100);
 			gfx_PrintString("FPS: ");
 			uint8_t fps=(int)((float)32768/(t2-t1)*10);
@@ -5212,7 +5197,7 @@ int main(void){
 			gfx_PrintString(".");
 			gfx_PrintInt(fps%10,1);
 			dbg_printf("time: %d\n",(t2-t1));
-			*/
+			
 			gfx_SetColor(75);
 			gfx_HorizLine_NoClip(0, 184, 320);//For some reason, there is a line here so I "patched" it ;)
 			if(updatehotbar>0)
