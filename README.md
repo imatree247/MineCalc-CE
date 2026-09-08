@@ -5,9 +5,10 @@
 
 
 
+# MINECALC----Minecraft-for-the-TI-84-Plus-CE
 As the name sugests, this is a game similar to Minecraft but instead designed to run on the TI 84 Plus CE graphing calculator. It is coded in C++ using the C/C++ TI 84 Plus CE Toolchain (CEdev) as well as a little bit of assembly. It was tested using the CEmu calculator emulator. This code works for the TI 84 Plus CE Python Edition as well.
 
-So, I bet you are wondering, how close to Minecraft is this game? This game, unlike pretty much every other Minecraft game for the calculator, is fully 3D from the first person perspective. It has a render distance of 16 blocks (taxicab/Manhattan distance, so looks like a diamond), and runs at an average of 7 fps, although the fps can vary depending on how much open space you're looking at. Sadly, in order to prioritize speed, it runs at 1/8th resolution (but it is Minecraft, do pixels really matter? :) ).
+So, I bet you are wondering, how close to Minecraft is this game? This game, unlike pretty much every other Minecraft game for the calculator, is fully 3D from the first person perspective. It has a render distance of 16 blocks (taxicab/Manhattan distance, so looks like a diamond), and runs at an average of 6 fps, although the fps can vary depending on how much open space you're looking at. Sadly, in order to prioritize speed, it runs at 1/5th resolution (but it is Minecraft, do pixels really matter? :) ).
 
 The game is chunk-based instead of one fixed map — each chunk is 32x32x32 (31x31x31 usable once you account for the barrier blocks), and you can walk between up to 62x62 chunks, with each visited chunk saved to its own appvar. There's a hotbar, crafting system, furnace/smelting, inventory, and a daylight cycle. There are about 28 block types (including glass, doors, beds, sandstone, cactus) and 18 items, including tools/weapons (wood, stone, gold, iron, and diamond rarity pickaxes and swords).
 
@@ -21,6 +22,7 @@ One more thing to mention: in the crafting screen, you have to align all of your
 
 To run the game, first download TI Connect CE or visit a website like ticalc.link. If your OS is later than 5.5, you need the arTIfiCE jailbreak* (if your OS is between 5.5 and 5.8.4 — if it's 5.8.5, arTIfiCE won't work and you are screwed, well, as of 8/10/26 when this readme was last updated. You should probably check to see if you are still screwed). This will let you run assembly programs. Third, download the MINECALC.8xp file and the MNCFTIMG.8xv assets file from the bin folder and send both to the calculator.
 
+With TNT, one other thing: I have not added any gun powder yet so craft TNT with coal in the place of gunpowder instead. Another thing with TNT, if you leave the chunk when it is exploding, don't leave the chunk when it is exploding because it won't explode and you will be sad.
 *arTIfiCE is not a jailbreak. It is an exploit. Everyone calls it a jailbreak though so I am.
 
 # Controls in game:
@@ -79,10 +81,16 @@ alpha --- select block to be used as fuel
 
 XTθN --- exit menu. NOTE: when you exit, it takes all your items out of the furnace and resets fire thingy
 
-
-As of making this readme, there is one bug I haven't fix yet. And it is important, so listen. **Everytime you open a world, there is a like 10% chance the screen will flicker with the background color. Just restart the game. Close it and reopen it. It will be gone.** 
-
+Cemetech link: https://www.cemetech.net/downloads/files/3047/x4163 
 
 One last thing: I did use generative AI (free account on Claude) to help with the programming. It didn't do anything too key to the game though ;). 
 
-Another last thing: you are free to use my code for something as long as you provide a link or something AND don't just copy my entire game.
+Another last thing: you are free to use my code for something as long as you provide a link or something AND don't just copy my entire game(aka make a Minecraft clone). I tried to add some comments in my code to make it more readable. 
+
+Special thanks to: my little brother for making me the diamond item image for the game. Also, special thanks to all the people who made coding c++ for the ti 84 plus ce possible at all. 
+
+Ok, you can stop reading now. The rest is just stuff I thought was cool (from a perspective of a calculator nerd) I did in my code.
+
+
+
+In this most recent update, I managed to make it over 2x faster! How you might ask? I did some fancy guessing! So... This game uses raycasting. If you don't know what that is it basically means for every pixel (or chunk of pixels in my case because I am running at a lower resolution) you send out a line and record what block you hit. Then you draw the color of that block. That is kind of slow. So what I did, is I raycasted every even column Then for every odd column, I checked if the pixel to the right was equal to the pixel to its left. If so, it just skipped drawing and drew that same color. And then I did the same thing for the rows. Pretty neat right? Yeah, I bet a solid 85% of the people reading this thought "yeah no this was a waste of my time." Anyways... That means I often only draw 1/3 of the pixels I usually draw! The only downside is textures far away sometimes look weird, but that was to be expected and an okay side effect. 
