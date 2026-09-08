@@ -1,7 +1,8 @@
 # MINECALC----Minecraft-for-the-TI-84-Plus-CE
 
 
-![Trailer for game](maintrailer-1.webp) ![Trailer for game](tnt.opt.png)
+![Trailer for game](newtrailer.opt.png) ![Trailer for game](tnt.opt.png) ![Trailer for game](maintrailer-1.webp)
+                                                                 (this one has older graphics but I hate video editing so it stays)
 
 
 
