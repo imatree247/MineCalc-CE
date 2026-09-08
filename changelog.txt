@@ -4,3 +4,5 @@ In this log every time I say COMPATIBILITY CHANGE it is not backwards compatible
 0.0.1: updated screen flashing bug! COMPATIBILITY CHANGE
 0.0.2: a lot faster
 0.0.3: a lot faster, but turned into resolution so actually looks a lot better but is a little slower.
+
+0.0.4: MAJOR UPDATE!!! Gave ores textures. Added coal ore, redstone ore, gravel, obsidian, fire, redstone dust, smoke (for TNT explosion) and TNT. For items I added coal, diamonds, flint, and  flint and steel. NOTE: TNT is crafted with coal in the place of gunpowder as I haven't added gunpowder yet and coal seemed the closest to gunpowder. Made it so glass when broken is not returned to inventory. Also, I haven't implemented redstone yet so it doesn't do anything quite yet BUT it does exist. I also fixed a bug with block updates where the first update of a game wouldn't trigger. COMPATIBILITY CHANGE 
