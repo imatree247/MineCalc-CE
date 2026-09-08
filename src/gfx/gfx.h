@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#define MNCFTIMG_appvar_size 18260
+#define MNCFTIMG_appvar_size 22770
 #define sprites_gfx_palette_offset 0
 #define woodpic_width 30
 #define woodpic_height 30
@@ -107,8 +107,28 @@ extern "C" {
 #define rottenflesh_height 30
 #define MNCFTIMG_sprites_gfx_rottenflesh_index 24
 #define rottenflesh ((gfx_sprite_t*)MNCFTIMG_appvar[24])
-#define MNCFTIMG_entries_num 25
-extern unsigned char *MNCFTIMG_appvar[25];
+#define diamond_width 30
+#define diamond_height 30
+#define MNCFTIMG_sprites_gfx_diamond_index 25
+#define diamond ((gfx_sprite_t*)MNCFTIMG_appvar[25])
+#define redstonedust_width 30
+#define redstonedust_height 30
+#define MNCFTIMG_sprites_gfx_redstonedust_index 26
+#define redstonedust ((gfx_sprite_t*)MNCFTIMG_appvar[26])
+#define coal_width 30
+#define coal_height 30
+#define MNCFTIMG_sprites_gfx_coal_index 27
+#define coal ((gfx_sprite_t*)MNCFTIMG_appvar[27])
+#define flintandsteeeel_width 30
+#define flintandsteeeel_height 30
+#define MNCFTIMG_sprites_gfx_flintandsteeeel_index 28
+#define flintandsteeeel ((gfx_sprite_t*)MNCFTIMG_appvar[28])
+#define flintitem_width 30
+#define flintitem_height 30
+#define MNCFTIMG_sprites_gfx_flintitem_index 29
+#define flintitem ((gfx_sprite_t*)MNCFTIMG_appvar[29])
+#define MNCFTIMG_entries_num 30
+extern unsigned char *MNCFTIMG_appvar[30];
 unsigned char MNCFTIMG_init(void);
 
 #ifdef __cplusplus

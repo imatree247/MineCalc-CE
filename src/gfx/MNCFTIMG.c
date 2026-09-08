@@ -4,7 +4,7 @@
 
 #define MNCFTIMG_HEADER_SIZE 0
 
-unsigned char *MNCFTIMG_appvar[25] =
+unsigned char *MNCFTIMG_appvar[30] =
 {
     (unsigned char*)0,
     (unsigned char*)902,
@@ -31,6 +31,11 @@ unsigned char *MNCFTIMG_appvar[25] =
     (unsigned char*)16874,
     (unsigned char*)17116,
     (unsigned char*)17358,
+    (unsigned char*)18260,
+    (unsigned char*)19162,
+    (unsigned char*)20064,
+    (unsigned char*)20966,
+    (unsigned char*)21868,
 };
 
 unsigned char MNCFTIMG_init(void)
@@ -46,7 +51,7 @@ unsigned char MNCFTIMG_init(void)
     }
 
     data = (uintptr_t)ti_GetDataPtr(appvar) - (uintptr_t)MNCFTIMG_appvar[0] + MNCFTIMG_HEADER_SIZE;
-    for (i = 0; i < 25; i++)
+    for (i = 0; i < 30; i++)
     {
         MNCFTIMG_appvar[i] += data;
     }

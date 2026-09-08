@@ -32,6 +32,11 @@ converts:
       - heart.png
       - hunger.png
       - rottenflesh.png
+      - diamond.png
+      - redstonedust.png
+      - coal.png
+      - flintandsteeeel.png
+      - flintitem.png
 
 # 3. Define the final AppVar output file
 outputs:
