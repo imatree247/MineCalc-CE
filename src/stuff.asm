@@ -9,6 +9,9 @@ assume adl=1
     scratch3:  rb 1             ; Automatically equals scratch2 + 1
     rectaddr: rb 3
     scratch_row: rb 32
+    DX: rb 3
+    DY: rb 3
+    DZ: rb 3
     section .data
     public _rect_8x8
     public _optomized_raycast_rect_8x8
@@ -16,8 +19,23 @@ assume adl=1
     public _getrectaddr
     public _notfullfillscreen
     public _optomized_raycast_rect_5x5
+    public _optomized_raycast_rect_5x5_no2
     public _Sprite_32x16to32x32
     public _Sprite_32x8to32x32
+    public _rect8x8complete
+    public _quicknotfullfillscreen
+    public _ASM_DDA_FULL
+    public _fast_mul16 
+    ;section .bss
+    public dda_deltax
+    public dda_deltay
+    public dda_deltaz
+    public dda_currblock
+    dda_deltax:    rb 3
+    dda_deltay:    rb 3
+    dda_deltaz:    rb 3
+    dda_currblock: rb 3
+    
     
 ; void rect_8x8(int x,  uint8_t y,  uint8_t color,  uint8_t* screenaddr)
 ;uint8* getscratch3()
@@ -153,13 +171,38 @@ _optomized_raycast_rect_8x8:
 
 
 
-    ld bc, 8
+    ld bc, 16
     ld hl, (rectaddr)
     add hl, bc
     ld (rectaddr), hl
     pop ix
     ret
 
+_rect8x8complete:
+    push ix
+    ld ix, 0
+    add ix, sp
+    ld de, (ix+6)
+    ld hl, 320;
+    add hl, de
+    ex de, hl
+    ;now hl is first row of screen and de is second
+    ld a, 23
+    .sloop:
+    ld bc, 320*7 ; length
+    ldir
+    ld bc, 320
+    add hl, bc;go to next row
+    ex de, hl
+    add hl, bc; go to next row
+    ex de, hl
+    dec a
+    cp a, 0
+    jr nz, .sloop
+    
+    pop ix
+    ret
+    
 _notfullfillscreen:
 	push ix
 	ld ix, 0
@@ -173,7 +216,8 @@ _notfullfillscreen:
 	ldir
 	pop ix
 	ret
-_optomized_raycast_rect_5x5:
+
+_optomized_raycast_rect_5x5_no2:
     push ix
     ld ix, (rectaddr)
     ld a, (scratch3)        
@@ -204,6 +248,42 @@ _optomized_raycast_rect_5x5:
 
 
     ld bc, 5
+    ld hl, (rectaddr)
+    add hl, bc
+    ld (rectaddr), hl
+    pop ix
+    ret
+_optomized_raycast_rect_5x5:
+    push ix
+    ld ix, (rectaddr)
+    ld a, (scratch3)        
+    ld de, (scratch1)           ; de = color in all 3 bytes
+    ld d, a
+    ld e, a
+    ld bc, 320
+
+    ld (ix), de
+    ld (ix+2), de
+    add ix, bc
+
+    ld (ix), de
+    ld (ix+2), de
+    add ix, bc
+
+    ld (ix), de
+    ld (ix+2), de
+    add ix, bc
+
+    ld (ix), de
+    ld (ix+2), de
+    add ix, bc
+
+    ld (ix), de
+    ld (ix+2), de
+    add ix, bc
+
+
+    ld bc, 10
     ld hl, (rectaddr)
     add hl, bc
     ld (rectaddr), hl
@@ -442,3 +522,5 @@ _Sprite_16x16to32x32:
 
     pop ix
     ret
+
+
