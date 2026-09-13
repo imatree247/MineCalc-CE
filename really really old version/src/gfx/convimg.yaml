@@ -1,0 +1,29 @@
+# 1. Skip palette generation (since we are using the system default)
+# You do not need a 'palettes:' section for xlibc.
+
+# 2. Define how images are converted
+converts:
+  - name: sprites_gfx
+    palette: xlibc      # Forces the built-in system palette
+    transparent-color-index: 0
+    images:
+      - woodpic.png
+      - stick.png
+      - stonepic.png
+      - ironpic.png
+      - goldpic.png
+      - diamondpic.png
+      - netheritepic.png
+      - woodsword.png
+      - stonesword.png
+      - goldsword.png
+      - ironsword.png
+      - diamondsword.png
+
+# 3. Define the final output files
+outputs:
+  - type: c
+    include-file: gfx.h
+    # Notice: xlibc is NOT listed under palettes here because it's built-in
+    converts:
+      - sprites_gfx

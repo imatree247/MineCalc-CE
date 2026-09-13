@@ -1,0 +1,117 @@
+
+	for(int i=0; i<32; ++i)
+	{
+		int s=0;
+		
+		if (i==GRASS||i==STONE||i==LEAF)
+		{
+			s=100;
+		}
+		else if (i==0)
+		{
+			s=300;
+		}
+		else
+		{
+			s=20;
+		}
+		world_changes[i]=(unsigned short*)malloc(s*2);
+		//prev_world_changes[i]=(unsigned short*)malloc(s*2);
+		//prev_world_changes_sizes[i]=s;
+		world_changes_sizes[i]=s;
+		
+		if(world_changes[i]==NULL)
+			dbg_printf("uhh... not enough ram?!\n");
+		else
+		{
+			for(int j=0; j<s;j++)
+			{
+				world_changes[i][j]=65535;//0 is taken, but max short val isn't!
+				//prev_world_changes[i][j]=65535;
+			}
+		}
+	}
+	
+
+
+
+
+
+uint8_t id=realworld[i];
+			if(id>MOBSTART-1)
+				continue;
+			dbg_printf("id saved: %d realworld %d   world  %d\n",id,realworld[i],world[i]);
+			world_changes[id][update_counter[id]]=i;
+			update_counter[id]++;
+			if(update_counter[id]>world_changes_sizes[id]-2)//ensure there is always a trailing blank space
+			{
+				int size=30;
+				unsigned short* temp=NULL;
+				while(temp==NULL&&size>0){
+					temp = (unsigned short*)realloc(world_changes[id], (world_changes_sizes[id]+size) * sizeof(unsigned short));
+					size--;
+				}
+				if(temp!=NULL)
+				{
+					world_changes[id]=temp;
+					memset(world_changes[id]+world_changes_sizes[id],65535,size*sizeof(unsigned short));
+					world_changes_sizes[id]+=size;
+				}
+				else 
+				{
+					dbg_printf("Failed to allocate memory for world changes!\n");
+					superstop = true;
+					update_counter[id]--;//will overwrite pervious change, but better than losing all changes, right ;)
+				}
+				if(size<29)//running low on memory
+				{
+					superstop=true;
+				}
+			
+			}
+
+inline int airay_trace_point(const point& pl, const int pixelx,const int pixely,const int& anglexz,const int& angleyz,int& d) {
+    flint currX = pl.x;
+    flint currY = pl.y;
+    flint currZ = pl.z;
+    
+	int pix = (int)currX;
+	int piy = (int)currY;
+	int piz = (int)currZ;
+	
+	int ix = (int)currX;
+	int iy = (int)currY;
+	int iz = (int)currZ;
+    // Get directions from cache
+    flint dx = cached_x_dir[pixelx];
+    flint dy = cached_y_dir[pixely];
+    flint dz = step_divide; // Looking forward
+    // Step the ray 10 times in small increments            16
+	rot_point_3d(dx,dy,dz,0,0,0,anglexz,angleyz);
+	//printf("%f\n",(float)myst);
+    for (int i = 0; i < 30; i++) {
+        // Increment by the direction vector
+        currX += dx; 
+        currY -= dy;
+        currZ += dz;
+		pix = ix;
+		piy = iy;
+		piz = iz;		
+		ix = (int)currX;
+		iy = (int)currY;
+		iz = (int)currZ;
+
+        // Check bounds
+        if (ix < 0 || ix >= 6 || iy < 0 || iy >= 6 || iz < 0 || iz >= 6) 
+            return 0;
+
+        if (vis_map(ix,iy,iz) != 0){
+			d=piy!=iy? 1:d;
+			d=pix!=ix? 0:d;
+			d=piz!=iz? 2:d;
+			//d=0;
+            return vis_map(ix,iy,iz);
+		}
+    }
+    return 0;
+}
