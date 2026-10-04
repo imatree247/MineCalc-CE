@@ -39,6 +39,12 @@ converts:
       - flintitem.png
       - bucket.png
       - waterbucket.png
+      - rawporkchop.png
+      - cookedporkchop.png
+      - emptyhunger.png
+      - emptyheart.png
+      - halfheart.png
+
 
 # 3. Define the final AppVar output file
 outputs:

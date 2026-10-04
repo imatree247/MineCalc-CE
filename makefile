@@ -15,7 +15,7 @@ LTO = YES
 
 # Use the toolchain's faster C libraries instead of the calculator's slow OS calls
 PREFER_OS_LIBC = NO
-COMPRESSED_MODE = zx0
+COMPRESSED_MODE = zx7
 # ----------------------------
 
 include $(shell cedev-config --makefile)

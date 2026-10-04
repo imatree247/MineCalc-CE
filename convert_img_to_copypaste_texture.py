@@ -68,6 +68,7 @@ def convert8bit(img):
     return new
 arr=convert8bit(img)
 #arr[:, [col1, col2]] = arr[:, [col2, col1]]
+'''
 def swapcol(col1,col2):
     global arr
     arr[:, [col1, col2]] = arr[:, [col2, col1]]
@@ -88,7 +89,10 @@ swapcol(1,2)
 
 swapcol(4,7)
 swapcol(5,6)
+'''
 
+np.flip(arr, axis=0)#turn it upside down because renderer by default flips everything upside down
+#note, this is not a big ^ ^ ^ it is an optimiziation.
 s=str(arr)
 s=s.replace("[","")
 s=s.replace(']','')
@@ -101,4 +105,5 @@ s=s.replace("{ ,",'{')
 s=s.replace(",}",'}')
 s=s.replace(", }",'}')
 s=s.replace('26','25')#26 is transparency
+
 print(s)

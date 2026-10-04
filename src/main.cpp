@@ -11,9 +11,11 @@
 #include <math.h>      
 #include <stdio.h>     
 #include <fileioc.h>
-extern "C" {
-    #include "gfx/gfx.h"
-}
+
+#include "gfx/gfx.h"
+
+#include "textures.cpp"
+
 #define AUTO_GENERATE_GLOBALS
 #include <ctime>
 #include <tice.h>
@@ -39,14 +41,15 @@ M  I  N  E  C  R  A  F  T
 //uint8_t vis_map[64][16][64];
 
 
-
+//BEHOLD! the many many macros. Some you can change, some i highly reccomend you don't.
+//if you change wx, wy, or wz make sure you update xws and yws which are the world shifts. xws is equal to log2(wy)+log2(wz) and yws = log2(wz) i think. they are all the same so it gets confusing.
 #define WX 32
 #define WY 32
 #define WZ 32
 
 #define XJ (WY*WZ)
 #define YJ WZ
-
+#define ZJ 1 //totally hardcoded everywhere btw
 #define XWS 10
 #define YWS 5
 
@@ -54,20 +57,11 @@ M  I  N  E  C  R  A  F  T
 
 #define VD 15
 //view distance. i recommend between 8 and 20. is measured in taxicab (manhattan) distance from player.
-
 #define res 5
-//res must be divisible by 320 can be 1,2,4,5,8,10,16,etc. ALSO, IN THE ASSEMBLY, YOU HAVE TO DO STUFF TOO!
-// i recommend 8 for visuals, 10 for speed. maybe 5 for really good visuals but I'd decrease VD.
-//here's a good table for approximate values.
-/*
-VD 15 (medium view distance):
-
-	res 8  = 12 fps
-	res 5  = 5 fps
-*/
+//res must be divisible by 320 can be 1,2,4,5,8,10,16. ALSO, new thing, i kinda hardcoded it (sorry!) in the assembly (well not too sorry) so it is much faster (yeah not sorry).
 #define AVERAGEFPS 7
-//#define BG_COLOR 191
-uint8_t BG_COLOR=125;
+//#define bg_color 191
+uint8_t bg_color=125;
 
 
 #define INTERACTD 6
@@ -76,7 +70,7 @@ uint8_t BG_COLOR=125;
 #define DIAMONDNUM 20
 #define REDSTONENUM 40
 #define GOLDNUM 40
-#define COALNUM 100
+#define COALNUM 70
 #define GRAVELNUM 7
 #define OBSIDIANNUM 30
 #define TUNNELNUM 5
@@ -102,9 +96,9 @@ uint8_t BG_COLOR=125;
 #define WATERBLOCK 16
 #define WATERFALL 17
 
-#define block_num 57
+#define block_num 64
 #define reg_block_num 18
-#define item_num 24
+#define item_num 26
 #define RECIPIENUM 19
 
 #define invenblocknum (TEXTURENUM+reg_block_num+FLOORNUM)
@@ -132,6 +126,8 @@ uint8_t BG_COLOR=125;
 #define FLINT (invenblocknum+21)
 #define BUCKET (invenblocknum+22)
 #define WATERBUCKET (invenblocknum+23)
+#define RAWPORKCHOP (invenblocknum+24)
+#define COOKEDPORKCHOP (invenblocknum+25)
 
 #define FLOORNUM 5
 #define FLOORVOXELS reg_block_num                 // last id that is NOT a floor voxel (15)
@@ -139,6 +135,7 @@ uint8_t BG_COLOR=125;
 #define SNOWCARPET (FLOORVOXELS+1)                // 16
 #define REDSTONEDUSTUNLIT (FLOORVOXELS+2)          // 17
 #define REDSTONEDUSTLIT (FLOORVOXELS+3)            // 18
+												// don't trust these indeicies i change blocks all the time so they are probsbly not correct
 #define WATERFLOOR (FLOORVOXELS+4) 
 
 #define WATERSLAB (FLOORVOXELS+5)
@@ -172,9 +169,13 @@ uint8_t* floorcolors=floorcolorsconst-(FLOORVOXELS+1);
 #define GRAVEL (FLOORVOXELSEND+22)
 #define NETHERPORTAL (FLOORVOXELSEND+23)
 #define TEXTURENUM 23
-
-
-
+/*
+#define GRASS PLANKS
+#define STONE CRAFTTABLE
+#define WOOD CACTUS
+#define LEAF MAGMABLOCK
+//debug to test texture speed ^ ^ ^
+*/
 
 
 
@@ -184,19 +185,32 @@ uint8_t* floorcolors=floorcolorsconst-(FLOORVOXELS+1);
 #define SKELETOPZ (reg_block_num+FLOORNUM+TEXTURENUM+1)
 #define SKELETOPX (reg_block_num+FLOORNUM+TEXTURENUM+2)
 #define SKELEBOTTOM (reg_block_num+FLOORNUM+TEXTURENUM+3)
+
 #define SHEEPFACEX (reg_block_num+FLOORNUM+TEXTURENUM+4)
 #define SHEEPFACEZ (reg_block_num+FLOORNUM+TEXTURENUM+5)
 #define SHEEPBACKX (reg_block_num+FLOORNUM+TEXTURENUM+6)
 #define SHEEPBACKZ (reg_block_num+FLOORNUM+TEXTURENUM+7)
+
 #define ZOMBIETOPX (reg_block_num+FLOORNUM+TEXTURENUM+8)
 #define ZOMBIETOPZ (reg_block_num+FLOORNUM+TEXTURENUM+9)
 #define ZOMBIELEGS (reg_block_num+FLOORNUM+TEXTURENUM+10)
 
-#define MOBNUM (10)
+#define PIGFACEX  (reg_block_num+FLOORNUM+TEXTURENUM+11)
+#define PIGFACEZ  (reg_block_num+FLOORNUM+TEXTURENUM+12)
+#define PIGBACKX  (reg_block_num+FLOORNUM+TEXTURENUM+13)
+#define PIGBACKZ  (reg_block_num+FLOORNUM+TEXTURENUM+14)
+
+#define PIGLINTOPX (reg_block_num+FLOORNUM+TEXTURENUM+15)
+#define PIGLINTOPZ (reg_block_num+FLOORNUM+TEXTURENUM+16)
+#define PIGLINLEGS (reg_block_num+FLOORNUM+TEXTURENUM+17)
+
+#define MOBNUM (17)
 #define MOBSTART SKELETOPZ
 
 #define SHEEPNUM 5
 #define ZOMBIENUM 5
+#define NETHERBGCOLOR 192
+
 //static uint8_t noninventory_blocks={DOORBOTTOMCLOSED,DOORBOTTOMOPEN,DOORTOPCLOSED,SKELEBOTTOM,SKELETOPX,SKELETOPZ,SHEEPFACEX,SHEEPFACEZ,SHEEPBACKX,SHEEPBACKZ}
 //Error with reg block num  +1 to ^ ^ ^
 static uint8_t* world;//[WX*WY*WZ];
@@ -209,14 +223,22 @@ static int inventory[block_num+item_num]={};
 int focal_length=200;//??? guess with this one ;) it works tho. Can't make it to low or will see serious fisheye!
 // smaller = bigger fov but bigger distortion. BEWARE OF THE FISHEYE!!!
 //also, if you change this, have to update inv_table as well
-
+uint8_t realm=0;//0 is overworld, 1 will be nether. If i add the end (which I probably wont DONT get your hopes up it will be 3
 void make_block_fall(uint8_t* block,uint8_t);
 void add_update(uint8_t* block,uint8_t optionaldata=0);
 void use_tnt(uint8_t* block);
 void add_updates_fully(uint8_t* block);
-void break_block(uint8_t* block);
-
-void explode(uint8_t* block,uint8_t r)
+int break_block(uint8_t* block);
+void address2coords(uint8_t* block, uint8_t&x,uint8_t&y,uint8_t&z )
+{
+	int nblock = block - world;
+	z = nblock & (WZ-1);
+	nblock >>= YWS;
+	y = nblock & (WY-1);
+	nblock >>= YWS;
+	x = nblock;
+}
+void explode(uint8_t* block,uint8_t r)//this makes an explosion
 {
 	int nblock = block - world;
 	uint8_t z = nblock & (WZ-1);
@@ -268,7 +290,7 @@ void explode(uint8_t* block,uint8_t r)
 		}
 	}
 }
-uint8_t countblockstaxi(uint8_t* block,uint8_t value)
+uint8_t countblockstaxi(uint8_t* block,uint8_t value)//start of the water code
 {
 	uint8_t someblock=0;
 	if(*(block+XJ)==value)
@@ -622,6 +644,7 @@ struct flint//like float plus int
     flint(int other) { data = other << shift_by; } // from int
     flint(float other) { data = (int)(other * (1 << shift_by)); } // from float
 	int data=0;// prob 24 bits. 4 digit in decimal, 5 in int 100000.10010 +10000 -> 10000010010
+	
     inline flint& operator+=(int other) {
         data+=other<<shift_by;
 		return *this;
@@ -704,13 +727,18 @@ struct flint//like float plus int
     inline flint operator-(flint other) const { flint result = *this; return result -= other; }
     inline flint operator*(flint other) const { flint result = *this; return result *= other; }
     inline flint operator/(flint other) const { flint result = *this; return result /= other; }
-	
+
 	inline flint operator-() const {flint o; o.data=-data;return o; }
-    // Overloads for raw integers
+		
+	inline flint operator<<(int other) const { flint result = *this; result.data <<= other; return result;}
+	inline flint operator>>(int other) const { flint result = *this; result.data >>= other; return result;}
+
     inline flint operator+(int other) const { flint result = *this; return result += other; }
     inline flint operator-(int other) const { flint result = *this; return result -= other; }
     inline flint operator*(int other) const { flint result = *this; return result *= other; }
     inline flint operator/(int other) const { flint result = *this; return result /= other; }
+
+	
 	
 };
 flint focal_inv;
@@ -895,9 +923,10 @@ uint8_t * cross_hair_pt(uint8_t*& blockbefore,bool countwaterblock=0,bool counta
 	int signdx=fast_copysign_pos(XJ,dx.data);
 	int signdy=fast_copysign_pos(YJ,dy.data);
 	int signdz=fast_copysign_pos(1,dz.data);
-	flint tmaxx=deltax;// dist to next line *deltax. start on int coord, so dist to next line is 1
-	flint tmaxy=deltay;
-	flint tmaxz=deltaz;
+	flint tmaxx,tmaxy,tmaxz;
+	tmaxx.data = deltax.data >> 1;
+	tmaxy.data = (dy.data > 0) ? 0 : deltay.data;
+	tmaxz.data = deltaz.data >> 1;
 
 	uint8_t *curr_block = world+((ix) << XWS) + ((iy) << YWS) + (iz);
 	for (int i=0; i<INTERACTD; ++i)
@@ -1008,607 +1037,34 @@ static const uint8_t hardness[block_num]=
 	/*id 0-15, reg blocks*/  0,1,2,1,0,255,1,1,1,1,1,1,1,1,2,5,255,255,
 	/*id 16, gap*/           0,
 	/*id 17-19, floor*/      0,0,0,255,255,
-	/*id 20-36, textures*/   1,2,1,1,1,1,1,1,2,2,0,2,1, /*crafttable..cactus*/  3,4,4,4,2,1,255,2,1,255, /*iron,gold,diamond,redstone,coal,tnt,lit_tnt smoke,gravel,netherportal*/
+	/*id 20-36, textures*/   1,2,1,1,1,1,1,1,2,2,0,2,1, /*crafttable..cactus*/  3,4,4,4,2,1,255,2,1,0, /*iron,gold,diamond,redstone,coal,tnt,lit_tnt smoke,gravel,netherportal*/
 	/*id 37-46, mobs*/       255,255,255,255,255,255,255,255,255,255
 };
 static uint8_t colors[(reg_block_num + 1) << 2] = {
     /* Block ID:            0    1    2    3    4    5    6      7      8       9        10   11   12    13   14   15 */
     /* Block Name:        none grss stne wood leaf barr unlmp litlmp unbtn litbtn sand wool sgrs snow nthr obsd,   wterwrt */
 
-    /* Channel 0 (x)light */  0, 130, 140,  65,   6, BG_COLOR,   0,   0,   0,   0, 205, 214, 130, 215,  64,   1,   25,25,0,
-    /* Channel 1 (y)drker */  0,   5, 172, 238, 103, BG_COLOR,   0,   0,   0,   0, 239, 247, 255, 255, 128,  74,   27,27,0,
-    /* Channel 2(z)darksst */ 0, 131, 139,  97,   7, BG_COLOR,   0,   0,   0,   0, 238, 254, 131, 247,  96,   0,   25,27,0
+    /* Channel 0 (x)drkst */  0, 130, 106,  65,   6, bg_color,   0,   0,   0,   0, 205, 140, 130, 215,  64,   0,   25,25,0,
+    /* Channel 1 (y)light */  0,   5, 172, 238, 103, bg_color,   0,   0,   0,   0, 239, 247, 255, 255, 128,  74,   27,27,0,
+    /* Channel 2 (z)drker */ 0, 131, 139,  97,   7, bg_color,   0,   0,   0,   0, 238, 181, 131, 247,  96,  1,   25,27,0
 };
-/** beautiful textures! I designed them in ms paint then put them in this amazing format (for some reason
-they get like mirrored really weirdly but i explain that later, but what is important now is that the reason these arrays
-are unintelligible is because i am mirroring them so they get unmirrored when rendered.)**/
-static const uint8_t craftingtabletop[64]=
+void change_bg(uint8_t color)
 {
-	238,64,238,238,238,238,64,238,
-	64 ,64 ,64, 64, 64,64, 64, 64,
-	238,64,238,238,238,238,64,238,
-	238,64,238,238,238,238,64,238,
-	238,64,238,238,238,238,64,238,
-	238,64,238,238,238,238,64,238,
-	64 ,64 ,64, 64, 64,64, 64, 64,
-	238,64,238,238,238,238,64,238
-};
-static const uint8_t planksnorm[64]=
-{238,238,238,238,238, 64,238,238
-,238,238, 64,238,238,238,238,238
-, 64, 64, 64, 64, 64, 64, 64, 64
-,238,238,238,238,238, 64,238,238
-, 64, 64, 64, 64, 64, 64, 64, 64
-,238,238, 64,238,238,238,238,238
-, 64,238,238,238,238,238,238,238
-, 64, 64, 64, 64, 64, 64, 64, 64};
-static const uint8_t planksdarker[64]=
-{172,172,172,172,172, 64,172,172
-,172,172, 64,172,172,172,172,172
-, 64, 64, 64, 64, 64, 64, 64, 64
-,172,172,172,172,172, 64,172,172
-, 64, 64, 64, 64, 64, 64, 64, 64
-,172,172, 64,172,172,172,172,172
-, 64,172,172,172,172,172,172,172
-, 64, 64, 64, 64, 64, 64, 64, 64};
-static const uint8_t plankslighter[64]=
-{239,239,239,239,239, 64,239,239
-,239,239, 64,239,239,239,239,239
-, 64, 64, 64, 64, 64, 64, 64, 64
-,239,239,239,239,239, 64,239,239
-, 64, 64, 64, 64, 64, 64, 64, 64
-,239,239, 64,239,239,239,239,239
-, 64,239,239,239,239,239,239,239
-, 64, 64, 64, 64, 64, 64, 64, 64};
-static const uint8_t furnacefront[64]=
-{
-	107,107,107,107,107,107,107,107,
-	0  ,0  ,107,107,107,107,0  ,0  ,
-	0  ,0  ,0  ,107,107,0  ,0  ,0  ,
-	107,107,107,107,107,107,107,107,
-	172,172,172,172,172,172,172,172,
-	0  ,0  ,172,172,172,172,0  ,0  ,
-	0  ,0  ,0  ,172,172,0  ,0  ,0  ,
-	172,172,172,172,172,172,172,172
-};
-static const uint8_t cobblestone[64]=
-{
-	74 ,107,74 ,107,107,74 ,107,74 ,
-	74 ,222,107,74 ,74 ,74 ,107,74 ,
-	222,222,74 ,74 ,74 ,222,222,107,
-	74 ,107,74 ,107,107,222,107,74 ,
-	74 ,222,222,107,107,74 ,107,74 ,
-	107,222,107,74 ,74 ,74 ,74 ,74 ,
-	74 ,107,74 ,74 ,107,74 ,222,222,
-	74 ,107,74 ,107,74 ,107,74 ,222,
-};
-static const uint8_t bedtop[64]
-{
-	221,221,24,24,24,24,221,221,
-	255,255,221,24,24,221,255,255,
-	255,255,255,221,221,255,255,255,
-	255,255,255,221,221,255,255,255,
-	24,24,24,24,24,24,24,24,
-	24,24,24,24,24,24,24,24,
-	24,24,24,24,24,24,24,24,
-	24,24,24,24,24,24,24,24
-};
-static const uint8_t bedsidetop[64]=
-{
-	26,26,26,26,97,97,26,26,
-	26,26,26,26,97,97,26,26,
-	24,24,24,24,24,24,24,24,
-	24,24,24,24,24,24,24,24,
-	26,26,26,26,97,97,26,26,
-	26,26,26,26,97,97,26,26,
-	26,26,26,26,97,97,26,26,
-	26,26,26,26,97,97,26,26,
-};
-/*
-static const uint8_t bedsidebottom[64]=
-{
-	26,26,97,97,26,26,26,26,
-	26,26,97,97,26,26,26,26,
-	26,26,97,97,26,26,26,26,
-	26,26,97,97,26,26,26,26,
-	26,26,97,97,26,26,26,26,
-	26,26,97,97,26,26,26,26,
-	24,24,24,24,24,24,24,24,
-	24,24,24,24,24,24,24,24,
-};*/
-static const uint8_t bedsidefront[64]=
-{
-	26,26,97,97,97,97,26,26,
-	26,26,97,97,97,97,26,26,
-	26,26,97,97,97,97,26,26,
-	26,26,97,97,97,97,26,26,
-	26,26,97,97,97,97,26,26,
-	26,26,97,97,97,97,26,26,
-	24,24,24,24,24,24,24,24,
-	24,24,24,24,24,24,24,24,
-};
-static const uint8_t glass[64]=
-{
-	26,26,26,255,255,26,26,26,
-	26,255,26,255,255,26,26,26,
-	26,26,26,255,255,26,26,26,
-	255,255,255,255,255,255,255,255,
-	255,255,255,255,255,255,255,255,
-	26,26,26,255,255,26,26,26,
-	26,26,26,255,255,26,255,26,
-	26,26,26,255,255,26,26,26,
-};
-static const uint8_t doorfronttop[64]=
-{
-	163,163,163,163,163,163,163,163,
-	163,26,26,163,163,26,26,163,
-	163,26,26,163,163,26,26,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,26,26,163,163,26,26,163,
-	163,26,26,163,163,26,26,163,
-	163,163,163,163,163,163,163,163
-};
-static const uint8_t brown[64]=
-{
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-	163,163,163,163,163,163,163,163,
-};
-static const uint8_t clear[64]=
-{
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-	26,26,26,26,26,26,26,26,
-};
-static const uint8_t doorarch[64]=
-{
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	163,163,163,163,163,163,163,163,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-};
-static const uint8_t doorbottomarch[64]=
-{
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-	26,26,26,163,163,26,26,26,
-};
-static const uint8_t skeletopf[64]=
-{
-
-
-	0,0,0,214,214,0,0,0,
-	106,214,214,214,214,214,214,106,
-	214,0 , 0  ,214,214,0   ,0 ,214,
-	214,214,214,214,214,214,214,214,
-	
-	97,214,255,107,107,214,107,26,
-	26,97,214,255,107,26,26,107,
-	107,214,97,97,107,107,214,26,
-	214,26,107,107,107,214,107,214,
-};
-static const uint8_t skeletope[64]=
-{
-	
-
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	
-	214,214,26,107,107,214,107,26,
-	26,107,214,107,107,26,26,107,
-	107,214,26,107,107,107,214,26,
-	214,26,107,107,107,214,107,214,
-};
-static const uint8_t skelebottom[64]=
-{	
-	26,107,97 ,97 ,26 ,107 ,107,26,
-	26,97 ,107,255,26 ,107 ,107,26,
-	97,107,255,26 ,26 ,107 ,107,26,
-	107,107,107,107,107,107,107,107,
-	
-	26,107,107,26 ,26 ,107 ,107,26,
-	26,107,107,26 ,26 ,107 ,107,26,
-	26,107,107,26 ,26 ,107 ,107,26,
-	26,107,107,26 ,26 ,107 ,107,26,
-};
-static const uint8_t grey[64]=
-{
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-	214,214,214,214,214,214,214,214,
-};
-static const uint8_t sheepface[64]=
-{	
-	244,204,204,255,    255,204,204,244,
-	204,255,0  ,255,    255,0  ,255,204,
-	204,204,204,255,    255,204,204,204,	
-	255,255,255,255,    255,255,255,255,
-	
-	26,107,107,26,      26,107,107,26,
-	26,107,107,26,      26,107,107,26,
-	255,255,255,255,   255,255,255,255,
-	171,204,255,255,   255,255,204,171,
-	
-};
-static const uint8_t sheepside[64]=
-{
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-	
-	26,26,26,26,        26,26,26,26,
-	26,26,26,26,        26,26,26,26,
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-
-};
-static const uint8_t sheepback[64]=
-{
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-	
-	26,107,107,26,      26,107,107,26,
-	26,107,107,26,      26,107,107,26,
-	255,255,255,255,    255,255,255,255,
-	255,255,255,255,    255,255,255,255,
-
-};
-static const uint8_t zombieface[64]=
-{36, 45, 45, 45, 45, 45, 45,  36
-, 45,  0,  0, 45, 45,  0,  0, 45
-, 45,  0,  0, 45, 45,  0,  0, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-,158,158, 45, 45, 45, 45,158,158
-,158,158, 45, 45, 45, 45,158,158
-,158,158,158,158,158,158,158,158
-,158,158,158,158,158,158,158,158
-};
-static const uint8_t zombiehead[64]=
-{45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-,158,158,158,158,158,158,158,158
-,158,158,158,158,158,158,158,158
-,158,158,158,158,158,158,158,158
-,158,158,158,158,158,158,158,158};
-
-static const uint8_t zombielegs[64]=
-{58, 58, 58,255,255, 58, 58, 58
-,158,158, 45, 45, 45, 45,158,158
-,158,158, 45, 45, 45, 45,158,158
-,158,158, 45, 45, 45, 45,158,158
-,115,115,115,26 ,26 ,115,115,115
-, 58, 58, 58,26 ,26 , 58, 58, 58
-, 58, 58, 58,26 ,26 , 58, 58, 58
-, 58, 58, 58,26 ,26 , 58, 58, 58
-};
-static const uint8_t zombieheadtop[64]=
-{45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-, 45, 45, 45, 45, 45, 45, 45, 45
-};
-static const uint8_t magmablocky[64]=
-{128,128,128,227,128,128,227,227
-,227,227,227,128,128,227,128,128
-,128,227,128,128,227,128,128,128
-,227,128,128,227,128,227,128,128
-,128,128,227,128,128,227,128,128
-,128,227,128,128,128,227,128,227
-,227,128,227,227,128,128,227,128
-,227,128,128,128,227,227,128,128};
-static const uint8_t magmablockx[64]=
-{96, 96, 96,195, 96, 96,195,195
-,195,195,195, 96, 96,195, 96, 96
-, 96,195, 96, 96,195, 96, 96, 96
-,195, 96, 96,195,128,195, 96, 96
-, 96, 96,195, 96, 96,195, 96, 96
-, 96,195, 96, 96, 96,195, 96,195
-,195, 96,195,195, 96, 96,195, 96
-,195, 96, 96, 96,195,195, 96, 96};
-static const uint8_t fire[64]=
-{230,227,232,193,193,232,227,230
-,227,232,232,193,193,232,227,230
-,232,232,193,193,193,193,232,227
-,232,193,193,193,193,193,193,232
-,255,255,230,232,232,255,255,255
-,255,230,227,232,232,230,255,255
-,255,230,227,232,232,230,230,255
-,230,227,227,232,232,227,230,255};
-static const uint8_t firetop[64]=
-{255,230,227,230,230,227,232,232
-,232,193,193,193,193,193,193,227
-,227,193,193,193,193,193,193,230
-,227,193,193,193,193,193,193,232
-,227,193,193,193,193,193,193,232
-,230,193,193,193,193,193,193,227
-,227,193,193,193,193,193,193,232
-,232,227,232,230,230,232,227,255};
-
-static const uint8_t cactusside[64]=
-{ 4,  2,255,  2,  2,  4,  2,255
-,  4,  2,  4,  2,  2,255,  2,  4
-,255,  2,  4,255,  2,  4,  2,  4
-,  4,  2,  4,  2,255,  4,  2,255
-,255,  2,  4,255,255,  4,  2,  4
-,  4,  2,  4,  2,  2,  4,255,  4
-,  4,255,  4,  2,  2,  4,  2,  4
-,  4,  2,  4,  2,  2,255,  2,  4};
-
-static const uint8_t cactustop[64]=
-{ 4,  4,  4,  4,  4,  4,  4,  4
-,  4,  4,255,  2,  2,  2,  4,255
-,  4,  2,  4,  4,  4,  4,  2,  4
-,255,  2,255,  2,  2,255,  2,  4
-,255,  2,  4,  2,  2,255,  2,  4
-,  4,  2,  4,255,  4,  4,  2,  4
-,  4,  4,255,  2,  2,  2,  4,  4
-,255,  4,  4,  4,255,  4,255,  4};
-
-static const uint8_t sandstoneside[64]=
-{246,246,246,237,246,246,246,237
-,237,237,237,246,237,237,246,246
-,247,247,237,237,247,247,237,237
-,247,247,247,247,247,247,247,247
-,246,237,237,246,237,237,237,246
-,246,246,246,237,246,237,246,237
-,237,246,246,246,237,246,246,246
-,246,246,237,237,246,246,237,246};
-static const uint8_t sandstonesidedarker[64]=
-{181,181,181,172,181,181,181,172
-,172,172,172,181,172,172,181,181
-,213,213,172,172,213,213,172,172
-,213,213,213,213,213,213,213,213
-,181,172,172,181,172,172,172,181
-,181,181,181,172,181,172,181,172
-,172,181,181,181,172,181,181,181
-,181,181,172,172,181,181,172,181};
-static const uint8_t sandstonetop[64]=
-{247,246,246,247,247,247,247,247
-,247,247,247,247,247,247,247,247
-,246,247,247,247,246,247,247,247
-,247,247,247,246,247,247,247,247
-,247,247,247,247,246,247,247,247
-,247,247,246,247,247,247,246,247
-,247,247,247,247,247,247,247,247
-,247,247,247,247,247,246,247,247};
-
-static const uint8_t ironorex[64]=
-{237,237,237,140,140,140,140,140
-,140,237,140,140,237,237,140,140
-,140,140,140,140,237,237,237,140
-,237,140,237,237,140,140,140,140
-,140,140,237,140,140,237,237,140
-,140,237,237,237,140,140,140,140
-,140,140,140,140,140,237,237,237
-,140,140,140,140,140,140,237,140};
-static const uint8_t ironorey[64]=
-{237,237,237,172,172,172,172,172
-,172,237,172,172,237,237,172,172
-,172,172,172,172,237,237,237,172
-,237,172,237,237,172,172,172,172
-,172,172,237,172,172,237,237,172
-,172,237,237,237,172,172,172,172
-,172,172,172,172,172,237,237,237
-,172,172,172,172,172,172,237,172};
-static const uint8_t ironorez[64]=
-{237,237,237,139,139,139,139,139
-,139,237,139,139,237,237,139,139
-,139,139,139,139,237,237,237,139
-,237,139,237,237,139,139,139,139
-,139,139,237,139,139,237,237,139
-,139,237,237,237,139,139,139,139
-,139,139,139,139,139,237,237,237
-,139,139,139,139,139,139,237,139};
-
-static const uint8_t goldorex[64]=
-{229,229,229,140,140,140,140,140
-,140,229,140,140,229,229,140,140
-,140,140,140,140,229,229,229,140
-,229,140,229,229,140,140,140,140
-,140,140,229,140,140,229,229,140
-,140,229,229,229,140,140,140,140
-,140,140,140,140,140,229,229,229
-,140,140,140,140,140,140,229,140};
-static const uint8_t goldorey[64]=
-{231,231,231,172,172,172,172,172
-,172,231,172,172,231,231,172,172
-,172,172,172,172,231,231,231,172
-,231,172,231,231,172,172,172,172
-,172,172,231,172,172,231,231,172
-,172,231,231,231,172,172,172,172
-,172,172,172,172,172,231,231,231
-,172,172,172,172,172,172,231,172};
-static const uint8_t goldorez[64]=
-{230,230,230,139,139,139,139,139
-,139,230,139,139,230,230,139,139
-,139,139,139,139,230,230,230,139
-,230,139,230,230,139,139,139,139
-,139,139,230,139,139,230,230,139
-,139,230,230,230,139,139,139,139
-,139,139,139,139,139,230,230,230
-,139,139,139,139,139,139,230,139};
-
-static const uint8_t diamondorex[64]=
-{30,30,30,140,140,140,140,140
-,140,30,140,140,30,30,140,140
-,140,140,140,140,30,30,30,140
-,30,140,30,30,140,140,140,140
-,140,140,30,140,140,30,30,140
-,140,30,30,30,140,140,140,140
-,140,140,140,140,140,30,30,30
-,140,140,140,140,140,140,30,140};
-static const uint8_t diamondorey[64]=
-{159,159,159,172,172,172,172,172
-,172,159,172,172,159,159,172,172
-,172,172,172,172,159,159,159,172
-,159,172,159,159,172,172,172,172
-,172,172,159,172,172,159,159,172
-,172,159,159,159,172,172,172,172
-,172,172,172,172,172,159,159,159
-,172,172,172,172,172,172,159,172};
-static const uint8_t diamondorez[64]=
-{31,31,31,139,139,139,139,139
-,139,31,139,139,31,31,139,139
-,139,139,139,139,31,31,31,139
-,31,139,31,31,139,139,139,139
-,139,139,31,139,139,31,31,139
-,139,31,31,31,139,139,139,139
-,139,139,139,139,139,31,31,31
-,139,139,139,139,139,139,31,139};
-
-static const uint8_t redstoneorex[64]=
-{192,192,192,140,140,140,140,140
-,140,192,140,140,192,192,140,140
-,140,140,140,140,192,192,192,140
-,192,140,192,192,140,140,140,140
-,140,140,192,140,140,192,192,140
-,140,192,192,192,140,140,140,140
-,140,140,140,140,140,192,192,192
-,140,140,140,140,140,140,192,140};
-static const uint8_t redstoneorey[64]=
-{192,192,192,172,172,172,172,172
-,172,192,172,172,192,192,172,172
-,172,172,172,172,192,192,192,172
-,192,172,192,192,172,172,172,172
-,172,172,192,172,172,192,192,172
-,172,192,192,192,172,172,172,172
-,172,172,172,172,172,192,192,192
-,172,172,172,172,172,172,192,172};
-static const uint8_t redstoneorez[64]=
-{192,192,192,139,139,139,139,139
-,139,192,139,139,192,192,139,139
-,139,139,139,139,192,192,192,139
-,192,139,192,192,139,139,139,139
-,139,139,192,139,139,192,192,139
-,139,192,192,192,139,139,139,139
-,139,139,139,139,139,192,192,192
-,139,139,139,139,139,139,192,139};
-
-static const uint8_t coalorex[64]=
-{0,0,0,140,140,140,140,140
-,140,0,140,140,0,0,140,140
-,140,140,140,140,0,0,0,140
-,0,140,0,0,140,140,140,140
-,140,140,0,140,140,0,0,140
-,140,0,0,0,140,140,140,140
-,140,140,140,140,140,0,0,0
-,140,140,140,140,140,140,0,140};
-static const uint8_t coalorey[64]=
-{0,0,0,172,172,172,172,172
-,172,0,172,172,0,0,172,172
-,172,172,172,172,0,0,0,172
-,0,172,0,0,172,172,172,172
-,172,172,0,172,172,0,0,172
-,172,0,0,0,172,172,172,172
-,172,172,172,172,172,0,0,0
-,172,172,172,172,172,172,0,172};
-static const uint8_t coalorez[64]=
-{0,0,0,139,139,139,139,139
-,139,0,139,139,0,0,139,139
-,139,139,139,139,0,0,0,139
-,0,139,0,0,139,139,139,139
-,139,139,0,139,139,0,0,139
-,139,0,0,0,139,139,139,139
-,139,139,139,139,139,0,0,0
-,139,139,139,139,139,139,0,139};
-
-static const uint8_t tntxz[64]=
-{181,  0,  0,  0,  0,  0,  0,181
-,115,115,115,115,115,115,115,115
-,232,128,128,232,232,128,128,232
-,232,128,128,232,232,128,128,232
-,232,128,128,232,232,128,128,232
-,232,128,128,232,232,128,128,232
-,115,181,  0,115,115,  0,181,115
-,115,181,  0,115,115,  0,181,115};
-
-static const uint8_t tnty[64]=
-{128,128,232,232,232,232,128,128
-,128,232,128,128,128,128,232,128
-,232,128,128,128,128,128,128,232
-,232,128,128,232,232,128,128,232
-,232,128,128,232,232,128,128,232
-,232,128,128,128,128,128,128,232
-,128,232,128,128,128,128,232,128
-,128,128,232,232,232,232,128,128};
-static const uint8_t explosionxyz[64]=
-{214,214,214,214,26,26,26,214
-,214,214,214,214,26,214,26,26
-,214,214,214,26,214,26,26,214
-,214,26,26,214,26,214,26,26
-,26,214,214,26,214,26,214,26
-,26,26,26,214,26,214,214,214
-,26,214,26,26,26,214,214,26
-,214,214,214,26,214,26,26,26};
-static const uint8_t graveltxt[64]=
-{107, 74,140,107,140, 74,107,140
-,222,107,107,107,222,107,107,107
-,107,107,107,222,107,222,107,107
-,107,107,140,222,107,222,107,107
-,222,140,107,107,107,107,140,140
-,140, 74,107,222,107, 74,140,222
-,140,140,222,107,140,222, 74,222
-,107,222,222,107,140,222,107,107};
-static const uint8_t netherportaltxt[64]=
-{113,113,184,113,113,113,184,184
-,113,184,113,113,113,113,113,113
-,184,113,113,113,113,113,184,184
-,113,113,113,113,113,113,113,113
-,113,113,113,113,113,113,113,113
-,184,184,113,113,113,113,184,184
-,113,113,184,113,113,184,113,113
-,184,113,184,113,113,184,113,113};
-static const uint8_t waterslabside[64]=
-{26,26,26,26,26,26,26,26,
-26,26,26,26,26,26,26,26,
-26,26,26,26,26,26,26,26,
-26,26,26,26,26,26,26,26,
-28,28,28,28,28,28,28,28,
-28,28,28,28,28,28,28,28,
-28,28,28,28,28,28,28,28,
-28,28,28,28,28,28,28,28};
+	bg_color=color;
+	colors[5]=color;
+	colors[5+reg_block_num+1]=color;//changing color of barrier block
+	colors[5+2*(reg_block_num+1)]=color;
+}
+/** beautiful textures! I designed them in ms paint then put them in textures.cpp to be used here! ik they are upside down here 
+that is because the renderer flips all the textures in the y as a byproduct. it is slightly faster.**/
 
 // this v v v  is an array storing what sides of texture blocks go with what textures ^ ^ ^
 static const uint8_t* texturedata[]={
 	clear,clear,clear,clear,  clear,clear,clear,clear,  clear,clear,clear,clear,clear,clear,clear,clear, waterslabside,clear,waterslabside,clear, /*id 16-18: snowcarpet, redstonedustunlit, redstonedustlit - side/bottom transparent, top handled by floorcolors[]*/
 //                  crafting table                                             furnace                                             planks                                                               bed top                         glass                               doortopopen                               doorbottomeopen             doortopclosed                         doorbottomclosed                   magmablock                                        fire                             sandstone                                                  cactus                       iron                              gold                                            diamond                            redstone                                                           coal                        tnt             lit tnt(will toggle texture in main loop to flash)                   explosion                                 gravel                                    netherportal texture (the purple stuff)                     skeletontopx                           skeletontopz                    skeletonbottom                                  sheepfacex                    sheepfacez                      sheepbackx                      sheepbackz                                           zombietopx                                                zombietopz                                            zombielegs                  
-	planksdarker,craftingtabletop,plankslighter,planksnorm,   cobblestone,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop ,ironorex,ironorey,ironorez,ironorey, goldorex,goldorey,goldorez,goldorey,    diamondorex,diamondorey,diamondorez,diamondorey, redstoneorex,redstoneorey,redstoneorez,redstoneorey,   coalorex,coalorey,coalorez,coalorey,   tntxz,tnty,tntxz,tnty,  tntxz,tnty,tntxz,tnty,                        explosionxyz,explosionxyz,explosionxyz,explosionxyz, graveltxt,graveltxt,graveltxt,graveltxt,   netherportaltxt,netherportaltxt,netherportaltxt,netherportaltxt,    skeletope,grey,skeletopf,clear,  skeletopf,grey,skeletope,clear,   skelebottom,skelebottom,skelebottom,skelebottom,   sheepface,grey,sheepside,grey,   sheepside,grey,sheepface,grey,     sheepback,grey,sheepside,grey,  sheepside,grey,sheepback,grey,     zombieface,zombieheadtop,zombiehead,zombieheadtop,     zombiehead,zombieheadtop,zombieface,zombieheadtop,      zombielegs,zombieheadtop,zombielegs,zombieheadtop};
+	planksdarker,craftingtabletop,plankslighter,planksnorm,   cobblestone,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop ,ironorex,ironorey,ironorez,ironorey, goldorex,goldorey,goldorez,goldorey,    diamondorex,diamondorey,diamondorez,diamondorey, redstoneorex,redstoneorey,redstoneorez,redstoneorey,   coalorex,coalorey,coalorez,coalorey,   tntxz,tnty,tntxz,tnty,  tntxz,tnty,tntxz,tnty,                        explosionxyz,explosionxyz,explosionxyz,explosionxyz, graveltxt,graveltxt,graveltxt,graveltxt,   netherportaltxt,netherportaltxt,netherportaltxt,netherportaltxt,
+//mobs
+    skeletope,grey,skeletopf,clear,  skeletopf,grey,skeletope,clear,   skelebottom,skelebottom,skelebottom,skelebottom,   sheepface,grey,sheepside,grey,   sheepside,grey,sheepface,grey,     sheepback,grey,sheepside,grey,  sheepside,grey,sheepback,grey,     zombieface,zombieheadtop,zombiehead,zombieheadtop,     zombiehead,zombieheadtop,zombieface,zombieheadtop,      zombielegs,zombieheadtop,zombielegs,zombieheadtop  ,          pigface,pigtop,pigfrontside,pigtop,   pigfrontside,pigtop,pigface,pigtop,      pigback,pigtop,pigbackside,pigtop,    pigbackside,pigtop,pigback,pigtop,      piglinface,pigtop,piglintopside,pigtop,    piglintopside,pigtop,piglinface,pigtop,       piglinlegs,pigtop,piglinlegs,pigtop};
 static flint cache [640]={};
 bool is_in_crafting_table=false;
 
@@ -1694,8 +1150,8 @@ void use_doorbc(uint8_t* block)//if clicked on bottom closed door block
 static const uint8_t fuels[]={WOOD,PLANKS,CRAFTTABLE,WOODPIC,WOODSWORD,STICK,COALITEM};
 //fuel times are out of 50, where 50 is one item smelted
 static const int fueltimes[]={   75,   75,     75,      50,       50,25,     405};
-static const int smeltable[]={SAND,IRON,GOLD,RAWMUTTON};
-static const int resulttable[]={GLASS,IRONINGOT,GOLDINGOT,COOKEDMUTTON};
+static const int smeltable[]={SAND,IRON,GOLD,RAWMUTTON,RAWPORKCHOP};
+static const int resulttable[]={GLASS,IRONINGOT,GOLDINGOT,COOKEDMUTTON,COOKEDPORKCHOP};
 gfx_sprite_t **flames;
 void decrease_item(int id);
 void furnace_stuff(uint8_t*)//uint8_t* block)//need block because of syntax for array
@@ -1726,7 +1182,7 @@ void furnace_stuff(uint8_t*)//uint8_t* block)//need block because of syntax for 
 		int y=98;
 		int c=0;
 		//inventory[DIAMONDPIC]=1;
-		for(int i=scroll+1; i<invenblocknum+item_num; ++i)//looping through inventory (inventory is an int[block_num+item_num])
+		for(int i=scroll+1; i<invenblocknum+item_num; ++i)//looping through inventory (inventory is an int[inven_block_num+item_num])
 		{
 			if(c>35)
 				break;
@@ -1858,7 +1314,7 @@ void furnace_stuff(uint8_t*)//uint8_t* block)//need block because of syntax for 
 			howfull=0;
 			if(inventory[cursor]>0)
 			{
-				for (int i=0; i<4; ++i)//how many possible blocks can smelt
+				for (int i=0; i<5; ++i)//how many possible blocks can smelt
 				{
 					if(smeltable[i]==cursor){
 						cookedb=cursor;
@@ -1891,263 +1347,18 @@ void furnace_stuff(uint8_t*)//uint8_t* block)//need block because of syntax for 
 //ZOMBIETOPX
 //ZOMBIETOPZ
 //ZOMBIELEGS
-int8_t playerhp=10;
+int8_t playerhp=20;
 int8_t playerhunger=20;
-struct Zombie
-{
-	int x=0;
-	int y=0;//counting at feet, not head 
-	int z=0;
-	int facing=0;//0 is x, 1 is z
-	int playerinsight=0;
-	int hp=20;
-	int cooldown=0;
-	int alive=false;
-	inline void draw()
-	{
-		vis_map(x,y,z)=ZOMBIELEGS;
-		vis_map(x,y+1,z)=ZOMBIETOPX+facing;//+0 makes it x, +1 makes it z.
-	}
-	inline void clear()
-	{
-		vis_map(x,y,z)=0;
-		vis_map(x,y+1,z)=0;
-	}
-	inline void spawn()
-	{
-		x=randInt(1,WX-1);
-		z=randInt(2,WZ-2);
-		y=WY-1;
-		while(vis_map(x,y-1,z)==0)
-			y--;
-		draw();
-	}
-	void move()
-	{
-		clear();
-		bool flag=1;
-		int prevx=x;
-		int prevy=y;
-		int prevz=z;
-		int iplx=(int)plx;
-		int iplz=(int)plz;
-		int step=0;
-		if(playerinsight)
-		{
-			if(fast_abs(x-iplx)>fast_abs(z-iplz))//movex
-			{
-				notelse:
-				step=sign(iplx-x);
-				if(vis_map(x+step,y+1,z)==0)//head block will be empty
-				{
-					x+=step;
-					facing=0;
-					if(vis_map(x,y,z))
-					{
-						if(vis_map(x,y+2,z)==0&&y<WY-1)//jump
-							y++;
-						else
-						{
-							x-=step;
-							if(flag){
-								flag=0;
-								goto alsoelse;
-								
-							}
-						}
-					}
-				}
-				else
-				{
-					if(flag)
-					{
-						flag=0;
-						goto alsoelse;						
-					}
-				}
-			}
-			else//movez
-			{
-				alsoelse:
-				int step=sign(iplz-z);
-				if(vis_map(x,y+1,z+step)==0)
-				{
-					
-					z+=step;
-					facing=1;
-					if(vis_map(x,y,z))//fit went underground
-					{
-						dbg_printf("feet went underground!");
-						if(vis_map(x,y+2,z)==0&&y<WY-1)//if can jump
-						{
-							y++;
-							dbg_printf("jumped!");
-						}
-						else//if can't jump
-						{
-							z-=step;
-							if(flag)
-							{
-								flag=0;
-								goto notelse;
-							}
-						}
-					}
-				}
-				else if(flag)
-				{
-					flag=0;
-					goto notelse;					
-				}
-			}
-		}
-		else
-		{
-			if(randInt(0,3)==0)
-			{
-				facing=!facing;
-				int dist=fast_abs(plx-x)+abs(plz-z);
-				if(dist<12)
-					playerinsight=1;
-			}
-		}
-		if(cooldown)
-			cooldown--;
-		if(iplx==x&&iplz==z&&fast_abs((ply-1)-y)<2)//went into player. (ply-1) because player counts at head, not feet
-		{			
-			if(cooldown==0)
-			{
-				playerhp--;
-				cooldown=AVERAGEFPS;
-				updatehotbar=2;
-			}
-			x=prevx;
-			y=prevy;
-			z=prevz;
-		}
-		if(vis_map(x,y-1,z)==0)
-			y--;
-		draw();
-		
-	}
 
-};
-struct Sheep {
-    int facingx=0;//either going to be 0, 1 or -1
-	int facingz=0;//0,1,-1
-    int x=0;//coords of head block
-	int y=0;
-	int z=0;
-	
-	int hp=8;
-	inline void fall_down()
-	{
-		while(vis_map(x,y-1,z)==0&&vis_map(x-facingx,y-1,z-facingz)==0) //this makes it appear on the bottomest block
-			y--;
-	}
-	inline void fall()
-	{
-		if(vis_map(x,y-1,z)==0&&vis_map(x-facingx,y-1,z-facingz)==0)
-			y--;
-	}
-	inline void spawn() 
-	{
-		 x=randInt(2,WX-2);
-		 z=randInt(1,WZ-2);
-		 y=WY-1;//going to go down until hit block
-		 facingx=1;
-		 facingz=0;
-		 fall_down();
-		 draw();
-		
-	}
-	inline void clear()/**deletes sheep**/
-	{
-		vis_map(x,y,z)=0;
-		vis_map(x-facingx,y,z-facingz)=0;
-	}
-	inline void draw()
-	{
-		if(facingx!=0)//is facing in x axis
-		{
-			vis_map(x,y,z)=SHEEPFACEX;
-			vis_map(x-facingx,y,z)=SHEEPBACKX;
-		}
-		else//is facing in z axis
-		{
-			vis_map(x,y,z)=SHEEPFACEZ;
-			vis_map(x,y,z-facingz)=SHEEPBACKZ;
-		}
-	}
-
-	void move()
-	{
-		
-		clear();
-		x+=facingx;
-		if(vis_map(x,y,z)!=0)
-		{
-			y++;//try to jump
-			if(vis_map(x,y,z)!=0||vis_map(x-facingx,y,z)!=0||y>WY-1)
-			{
-				y--;//nope, can't jump
-				x-=facingx;
-			}
-		}
-		z+=facingz;
-		if(vis_map(x,y,z)!=0)
-		{
-			y++;//try to jump
-			if(vis_map(x,y,z)!=0||vis_map(x,y,z-facingz)!=0||y>WY-1)
-			{
-				y--;//nope, can't jump
-				z-=facingz;
-			}
-		}
-		fall();
-		draw();
-		
-	}
-	
-	void randturn()
-	{
-		clear();
-		int foo= randInt(0,10);
-		switch(foo)
-		{
-			case 0:
-				if(vis_map(x-1,y,z)==0){
-					facingx=1;
-					facingz=0;
-				}
-				break;
-				
-			case 1:
-				if(vis_map(x+1,y,z)==0){
-					facingx=-1;
-					facingz=0;
-				}
-				break;
-			case 2:
-				if(vis_map(x,y,z-1)==0){
-					facingx=0;
-					facingz=1;
-				}
-				break;
-			case 3:
-				if(vis_map(x,y,z+1)==0){
-					facingx=0;
-					facingz=-1;
-				}
-				break;
-				
-		}
-		draw();
-			
-	}
-	 
-};
 uint8_t ghotbar[8]={};
+int hotbarblock=0;
+
+// for reverence v v v 
+//const static gfx_sprite_t *item_imgs[]={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh}, diamonditem    coalitem,     flint and steel   flint, bucket, water_bucket, pork pork
+
+const static uint8_t attack_damage[item_num]  =   {2,        3,       2,       4,        5,           6,              1,       4,      5,         4,      6,           7,           1,        1,       1,          1,                  1,     1,                1,         1,            1,     1,       1 ,       1,     1};
+
+/**disclamer: I wrote the sheep and zombie classes at first then asked claude to turn them into genral hmob and vmob classes so this is like half vibe-coded**/
 void add2hotbar(int id)
 {
 	updatehotbar=2;
@@ -2168,46 +1379,434 @@ void add2hotbar(int id)
 		}
 	}
 }
-static Sheep sheep[SHEEPNUM];
+/*
+    DYNAMIC MOB LIST
+    ================
+    Goal: no more fixed "always exactly SHEEPNUM sheep, always exactly
+    ZOMBIENUM zombies" -- instead, a variable-length list of active mobs.
+
+    Important reality check for this hardware: a truly unbounded list
+    (malloc-per-mob) risks the same RAM fragmentation you already guard
+    against elsewhere in your code (world_changes realloc, the "YOU ARE
+    LOW ON RAM" messages). So this uses an *object pool* instead:
+    fixed backing storage (no allocation, no fragmentation), but the
+    number of ACTIVE mobs drawn from that storage varies at runtime --
+    you're no longer locked into exactly N sheep existing at all times.
+
+    Mob is now fully polymorphic: clear/draw/update/at/hurt are all
+    virtual, so one generic loop drives every mob regardless of type,
+    and adding a new mob type later is just a new subclass -- no
+    changes needed to the list/pool/hurt-dispatch code below.
+*/
+
+#include <cstdint>
+
+// ============================================================
+// Mob -- common interface every mob type implements
+// ============================================================
+struct Mob
+{
+    bool active=false;
+    uint8_t x=0,y=0,z=0;
+    int8_t hp=0;
+
+    virtual void clear()=0;
+    virtual void draw()=0;
+    virtual void update()=0;
+    virtual bool at(uint8_t* block)=0;
+    virtual void hurt(int amount)=0;
+    virtual ~Mob(){}
+};
+
+#define MAX_MOBS 24
+Mob* mob_list[MAX_MOBS];
+int mob_count=0;
+
+bool add_mob(Mob* m)
+{
+    if(mob_count>=MAX_MOBS) return false;
+    mob_list[mob_count++]=m;
+    m->active=true;
+    return true;
+}
+void remove_mob(Mob* m)
+{
+    for(int i=0;i<mob_count;++i)
+        if(mob_list[i]==m)
+        {
+            mob_list[i]=mob_list[mob_count-1];
+            mob_count--;
+            break;
+        }
+    m->active=false;
+}
+void despawn_mob(Mob* m){ m->clear(); remove_mob(m); }
+void update_all_mobs(){ for(int i=0;i<mob_count;++i) mob_list[i]->update(); }
+
+void hurtmob_at(uint8_t* block)
+{
+    int amount=1;
+    int hblock=ghotbar[hotbarblock];
+    if(hblock>invenblocknum)
+        amount=attack_damage[hblock-invenblocknum-1];
+    for(int i=0;i<mob_count;++i)
+        if(mob_list[i]->at(block))
+        {
+            mob_list[i]->hurt(amount);
+            return;
+        }
+}
+
+// sign that returns 0 for 0 (your sign() returns 1)
+inline int8_t sgn(int n){ return (n>0)-(n<0); }
+
+// ===================== HMob =====================
+struct HMob : public Mob
+{
+    int8_t facingx=0, facingz=0;
+    int8_t base_hp=8;
+    uint8_t faceX=0, backX=0, faceZ=0, backZ=0;
+    uint8_t drop1id=0, drop1cnt=0, drop2id=0, drop2cnt=0;
+
+    void setup(uint8_t fx,uint8_t bx,uint8_t fz,uint8_t bz,int8_t hp_,
+               uint8_t d1id=0,uint8_t d1cnt=0,uint8_t d2id=0,uint8_t d2cnt=0)
+    {
+        faceX=fx; backX=bx; faceZ=fz; backZ=bz;
+        base_hp=hp_; hp=hp_;
+        drop1id=d1id; drop1cnt=d1cnt; drop2id=d2id; drop2cnt=d2cnt;
+    }
+    inline void fall_down()
+    {
+        bool nothitair=1;
+        while((vis_map(x,y-1,z)==0&&vis_map(x-facingx,y-1,z-facingz)==0)||nothitair)
+        {
+            y--;
+            if(vis_map(x,y,z)==0&&vis_map(x-facingx,y,z-facingz)==0)
+                nothitair=0;
+            if(y<1) break;
+        }
+    }
+    inline void fall()
+    {
+        if(vis_map(x,y-1,z)==0&&vis_map(x-facingx,y-1,z-facingz)==0)
+            y--;
+    }
+    void spawn()
+    {
+        x=randInt(2,WX-2);
+        z=randInt(1,WZ-2);
+        y=WY-1;
+        facingx=1; facingz=0;
+        hp=base_hp;
+        fall_down();
+        draw();
+    }
+    void clear() override
+    {
+        vis_map(x,y,z)=0;
+        vis_map(x-facingx,y,z-facingz)=0;
+    }
+    void draw() override
+    {
+        if(facingx!=0)
+        {
+            vis_map(x,y,z)=faceX;
+            vis_map(x-facingx,y,z)=backX;
+        }
+        else
+        {
+            vis_map(x,y,z)=faceZ;
+            vis_map(x,y,z-facingz)=backZ;
+        }
+    }
+    void move()
+    {
+        clear();
+        x+=facingx;
+        if(vis_map(x,y,z)!=0)
+        {
+            y++;
+            if(vis_map(x,y,z)!=0||vis_map(x-facingx,y,z)!=0||y>WY-1)
+            { y--; x-=facingx; }
+        }
+        z+=facingz;
+        if(vis_map(x,y,z)!=0)
+        {
+            y++;
+            if(vis_map(x,y,z)!=0||vis_map(x,y,z-facingz)!=0||y>WY-1)
+            { y--; z-=facingz; }
+        }
+        fall();
+        draw();
+    }
+    void randturn()
+    {
+        clear();
+        switch(randInt(0,10))
+        {
+            case 0: if(vis_map(x-1,y,z)==0){facingx=1;facingz=0;} break;
+            case 1: if(vis_map(x+1,y,z)==0){facingx=-1;facingz=0;} break;
+            case 2: if(vis_map(x,y,z-1)==0){facingx=0;facingz=1;} break;
+            case 3: if(vis_map(x,y,z+1)==0){facingx=0;facingz=-1;} break;
+        }
+        draw();
+    }
+    void update() override
+    {
+        if(randInt(0,AVERAGEFPS)==0){ move(); randturn(); }
+    }
+    bool at(uint8_t* block) override
+    {
+        return &(vis_map(x,y,z))==block || &(vis_map(x-facingx,y,z-facingz))==block;
+    }
+    void hurt(int amount) override
+    {
+        hp-=amount;
+        if(hp<=0)
+        {
+            if(drop1id){inventory[drop1id]+=drop1cnt; add2hotbar(drop1id);}
+            if(drop2id){inventory[drop2id]+=drop2cnt; add2hotbar(drop2id);}
+            despawn_mob(this);
+        }
+    }
+};
+
+// ===================== VMob =====================
+struct VMob : public Mob
+{
+    uint8_t facing=0;          // 0 is x, 1 is z
+    uint8_t playerinsight=0;
+    int8_t  base_hp=20;
+    uint8_t cooldown=0;
+    uint8_t damage=1;
+    uint8_t legs=0, topX=0, topZ=0;
+    uint8_t drop1id=0, drop1cnt=0, drop2id=0, drop2cnt=0;
+
+    void setup(uint8_t legs_,uint8_t topX_,uint8_t topZ_,int8_t hp_=20,uint8_t dmg=1,
+               uint8_t d1id=0,uint8_t d1cnt=0,uint8_t d2id=0,uint8_t d2cnt=0)
+    {
+        legs=legs_; topX=topX_; topZ=topZ_;
+        base_hp=hp_; hp=hp_; damage=dmg;
+        drop1id=d1id; drop1cnt=d1cnt; drop2id=d2id; drop2cnt=d2cnt;
+    }
+    void draw() override
+    {
+        vis_map(x,y,z)=legs;
+        vis_map(x,y+1,z)=facing?topZ:topX;
+    }
+    void clear() override
+    {
+        vis_map(x,y,z)=0;
+        vis_map(x,y+1,z)=0;
+    }
+    void spawn()
+    {
+        x=randInt(1,WX-2);
+        z=randInt(2,WZ-2);
+        y=WY-1;
+        hp=base_hp;
+        bool nothitair=1;
+        while(vis_map(x,y-1,z)==0||nothitair)
+        {
+            y--;
+            if(vis_map(x,y,z)==0) nothitair=0;
+            if(y<1) break;
+        }
+        draw();
+    }
+    // one step along one axis (one of sx/sz is +-1, other 0). Climbs 1 block.
+    // Call between clear() and draw().
+    bool step(int8_t sx,int8_t sz)
+    {
+        if(sx==0&&sz==0) return false;
+        if(vis_map(x+sx,y+1,z+sz)!=0) return false;
+        x+=sx; z+=sz;
+        if(vis_map(x,y,z))
+        {
+            if(vis_map(x,y+2,z)==0&&y<WY-1) y++;
+            else { x-=sx; z-=sz; return false; }
+        }
+        return true;
+    }
+    void move()
+    {
+        clear();
+        if(playerinsight)
+        {
+            int iplx=(int)plx, iplz=(int)plz;
+            int8_t sx=sgn(iplx-x), sz=sgn(iplz-z);
+            bool xfirst = fast_abs(x-iplx)>fast_abs(z-iplz);
+            if(xfirst ? step(sx,0) : step(0,sz))
+                facing=!xfirst;
+            else if(xfirst ? step(0,sz) : step(sx,0))
+                facing=xfirst;
+        }
+        else if(randInt(0,3)==0)
+        {
+            facing=!facing;
+            int dist=fast_abs((int)plx-x)+fast_abs((int)plz-z);
+            if(dist<12) playerinsight=1;
+        }
+        if(vis_map(x,y-1,z)==0) y--;
+        draw();
+    }
+    void update() override
+    {
+        uint8_t prevx=x, prevy=y, prevz=z;
+        move();
+        if(cooldown) cooldown--;
+        if((int)plx==x && (int)plz==z && fast_abs((int)ply-1-y)<2)
+        {
+            if(cooldown==0)
+            {
+                playerhp-=damage;
+                cooldown=AVERAGEFPS;
+                updatehotbar=2;
+            }
+            // undo move (clear/draw so the map matches)
+            clear(); x=prevx; y=prevy; z=prevz; draw();
+        }
+    }
+    bool at(uint8_t* block) override
+    {
+        return &(vis_map(x,y,z))==block || block==&(vis_map(x,y+1,z));
+    }
+    void hurt(int amount) override
+    {
+        int8_t prevhp=hp;
+        hp-=amount;
+        if(hp<1&&prevhp>0)
+        {
+            if(drop1id){inventory[drop1id]+=drop1cnt; add2hotbar(drop1id);}
+            if(drop2id){inventory[drop2id]+=drop2cnt; add2hotbar(drop2id);}
+            despawn_mob(this);
+        }
+    }
+};
+
+// ===================== Skeleton =====================
+struct Skeleton : public VMob
+{
+    void update() override
+    {
+        clear();
+        int dx=(int)plx-x, dz=(int)plz-z;
+        int adx=fast_abs(dx), adz=fast_abs(dz);
+        int dist=adx+adz;
+        facing = adz>=adx;
+        if(cooldown) cooldown--;
+
+        if(dist<=14)
+        {
+            int8_t sx=0, sz=0;
+            if(adx>adz) sx=sgn(dx); else sz=sgn(dz);
+            if(dist>8)       step(sx,sz);        // approach
+            else if(dist<4)  step(-sx,-sz);      // back off
+            else if(randInt(0,3)==0)             // strafe
+                step(sz?1:0, sx?1:0);
+
+            if(dist<=10 && cooldown==0 && randInt(0,2)==0)
+            {
+                playerhp-=damage;                // hitscan arrow
+                cooldown=AVERAGEFPS*2;
+                updatehotbar=2;
+            }
+        }
+        if(vis_map(x,y-1,z)==0) y--;
+        draw();
+    }
+};
+
+// ===================== Pools =====================
+#define HMOB_POOL_SIZE 16
+#define VMOB_POOL_SIZE 16
+#define SKEL_POOL_SIZE 8
+static HMob hmob_pool[HMOB_POOL_SIZE];
+static VMob vmob_pool[VMOB_POOL_SIZE];
+static Skeleton skel_pool[SKEL_POOL_SIZE];
+
+HMob* spawn_hmob(uint8_t fx,uint8_t bx,uint8_t fz,uint8_t bz,int8_t hp,
+                 uint8_t d1id=0,uint8_t d1cnt=0,uint8_t d2id=0,uint8_t d2cnt=0)
+{
+    for(int i=0;i<HMOB_POOL_SIZE;++i)
+        if(!hmob_pool[i].active)
+        {
+            hmob_pool[i].setup(fx,bx,fz,bz,hp,d1id,d1cnt,d2id,d2cnt);
+            hmob_pool[i].spawn();
+            if(!add_mob(&hmob_pool[i])){ hmob_pool[i].clear(); return NULL; }
+            return &hmob_pool[i];
+        }
+    return NULL;
+}
+VMob* spawn_vmob(uint8_t legs,uint8_t topX,uint8_t topZ,int8_t hp=20,uint8_t dmg=1,
+                 uint8_t d1id=0,uint8_t d1cnt=0,uint8_t d2id=0,uint8_t d2cnt=0)
+{
+    for(int i=0;i<VMOB_POOL_SIZE;++i)
+        if(!vmob_pool[i].active)
+        {
+            vmob_pool[i].setup(legs,topX,topZ,hp,dmg,d1id,d1cnt,d2id,d2cnt);
+            vmob_pool[i].spawn();
+            if(!add_mob(&vmob_pool[i])){ vmob_pool[i].clear(); return NULL; }
+            return &vmob_pool[i];
+        }
+    return NULL;
+}
+Skeleton* spawn_skeleton()
+{
+    for(int i=0;i<SKEL_POOL_SIZE;++i)
+        if(!skel_pool[i].active)
+        {
+            skel_pool[i].setup(SKELEBOTTOM,SKELETOPX,SKELETOPZ,12,2,STICK,2);
+            skel_pool[i].spawn();
+            if(!add_mob(&skel_pool[i])){ skel_pool[i].clear(); return NULL; }
+            return &skel_pool[i];
+        }
+    return NULL;
+}
+
+template<class T>
+void manage_nocturnal_vmobs(T* pool,int poolsize,int wtime,int sun_damage)
+{
+    for(int i=0;i<poolsize;++i)
+    {
+        T& m=pool[i];
+        if(!m.active) continue;
+        if(sun_damage&&wtime<10&&m.hp>0) m.hp-=sun_damage;
+        if(m.hp<1){ m.clear(); remove_mob(&m); }
+    }
+}
+
+#define spawn_sheep() spawn_hmob(SHEEPFACEX,SHEEPBACKX,SHEEPFACEZ,SHEEPBACKZ,8, WOOL,2,RAWMUTTON,1);
+#define spawn_pig() spawn_hmob(PIGFACEX,PIGBACKX,PIGFACEZ,PIGBACKZ,8,RAWPORKCHOP,1);
+#define spawn_zombie() spawn_vmob(ZOMBIELEGS,ZOMBIETOPX,ZOMBIETOPZ,20,1,ROTTENFLESH,2);
+VMob* spawn_piglin()
+{
+	 auto s=spawn_vmob(PIGLINLEGS,PIGLINTOPX,PIGLINTOPZ,20,1,RAWPORKCHOP,1,GOLDINGOT,1);
+	 
+	 if(s==NULL)
+	 	return NULL;
+	 s->clear();
+	
+	 if(randInt(0,1)&&s->y>15)
+	 {
+		 s->y--;
+		 s->y--;//so head is in a solid
+		while(vis_map(s->x,s->y,s->z)||vis_map(s->x,s->y+1,s->z))//keep falling if head OR feet are in a solid
+		{
+			s->y--;
+			if(s->y<2)
+			{
+				remove_mob(s);
+				return NULL;//unable to find a suitable spawn
+			}
+		}
+	 }
+	 s->draw();
+	 return s;
+}
 int32_t* gstarttime;
 uint32_t offsettime=(uint32_t)(3932160/2)*(uint32_t)2;//2 minutes in ticks.
-int hotbarblock=0;
-// for reverence v v v 
-//const static gfx_sprite_t *item_imgs[]={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh}, diamonditem    coalitem,     flint and steel   flint, bucket, water_bucket
-const static uint8_t attack_damage[item_num]  =   {2,        3,       2,       4,        5,           6,              1,       4,      5,         4,      6,           7,           1,        1,       1,          1,                  1,     1,                1,         1,            1,     1,       1};
-void hurtsheep(uint8_t* block)
-{
-	int i=0;//need later (is index of what sheep it is)
-	for(; i<SHEEPNUM;++i)
-	{
-		auto s=sheep[i];			
-		if(&(vis_map(s.x,s.y,s.z))==block||&(vis_map(s.x-s.facingx,s.y,s.z-s.facingz))==block)//if is right sheep
-			break;
-	}
-	if(i==SHEEPNUM)//not supposed to happen
-	{
-		*block=0;
-		return;
-	}
-	{
-	//i is index of sheep
-		int amount=1;
-		int hblock=ghotbar[hotbarblock];
-		if(hblock>invenblocknum)//is an item
-			amount=attack_damage[hblock-invenblocknum-1];
-		sheep[i].hp-=amount;
-		if(sheep[i].hp<=0)
-		{
-			sheep[i].clear();
-			sheep[i].spawn();
-			sheep[i].hp=8;
-			inventory[WOOL]+=2;
-			inventory[RAWMUTTON]+=1;
-			add2hotbar(WOOL);
-			add2hotbar(RAWMUTTON);
-		}
-	}
-}
+
 int respawnx=1;
 int respawny=WY-1;
 int respawnz=1;
@@ -2216,9 +1815,13 @@ uint8_t chunkz=32;
 uint8_t respawnchunkx=32;
 uint8_t respawnchunkz=32;
 
-Zombie zombies[ZOMBIENUM];
-void use_bed(uint8_t*)
+void use_bed(uint8_t* block)
 {
+	if(realm==1)//nether
+	{
+		explode(block,3);//everyone's favorite mechanic!
+		return;
+	}
 	respawnx=plx;
 	respawny=ply;
 	respawnz=plz;
@@ -2246,29 +1849,7 @@ void use_bed(uint8_t*)
 	}
 }
 
-void hurtzombie(uint8_t* block)
-{
-	int amount=1;
-	int hblock=ghotbar[hotbarblock];
-	if(hblock>invenblocknum)//is an item
-		amount=attack_damage[hblock-invenblocknum-1];
-	int i;
-	for (i=0; i<ZOMBIENUM;++i)
-	{
-		auto z=zombies[i];
-		
-		if(&(vis_map(z.x,z.y,z.z))==block||block==&(vis_map(z.x,z.y+1,z.z)))
-			break;
-	}
-	int prevhp=zombies[i].hp;
-	zombies[i].hp-=amount;
-	if(zombies[i].hp<1&&prevhp>0)
-	{
-		inventory[ROTTENFLESH]+=2;
-		add2hotbar(ROTTENFLESH);
-	}
-	
-}
+
 
 void use_tnt(uint8_t* block)
 {
@@ -2288,8 +1869,10 @@ static void (*block_is_usable[])(uint8_t*) ={
 	use_doorto, use_doorbo, use_doortc, use_doorbc,                    // 24-27: doors
 	NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,NULL,NULL/*calls use_tnt by other methods*/,NULL,NULL,NULL,NULL, // 28-31: magmablock,fire,sandstone,cactus + ores. tnt, lit tnt, smoke,gravel,netherportal
 	NULL, NULL, NULL,                                                  // 32-34: skeletopx,skeletopz,skelebottom (unimplemented)
-	hurtsheep, hurtsheep, hurtsheep, hurtsheep,                        // 35-38: sheepfacex,sheepfacez,sheepbackx,sheepbackz
-	hurtzombie, hurtzombie, hurtzombie                                 // 39-41: zombietopx,zombietopz,zombielegs
+	 hurtmob_at, hurtmob_at, hurtmob_at, hurtmob_at,                        // 35-38: sheepfacex,sheepfacez,sheepbackx,sheepbackz
+	 hurtmob_at, hurtmob_at, hurtmob_at,                                // 39-41: zombietopx,zombietopz,zombielegs
+	 hurtmob_at, hurtmob_at, hurtmob_at, hurtmob_at,
+	 hurtmob_at, hurtmob_at, hurtmob_at
 };
 void noinven(uint8_t* block)
 {
@@ -2404,9 +1987,9 @@ int* ddatmaxz = getddatmaxz();
 	deltax= inv_tablel[dx.data];\
 	deltaz = inv_tablel[dz.data];\
 	\
-	tmaxx=deltax;\
-	tmaxy=deltay;\
-	tmaxz=deltaz;\
+	tmaxx.data = deltax.data >> 1;\
+	tmaxy.data = (tdy.data > 0) ? 0 : deltay.data;\
+	tmaxz.data = deltaz.data >> 1;\
 	\
 	uint8_t quadrant = (dx.data>0) | tdy_bit | ((dz.data > 0)<<2);\
 	\
@@ -2423,15 +2006,12 @@ int* ddatmaxz = getddatmaxz();
 	CONCAT(start_loop,pastenum):\
 	*ddacurrblock=curr_block;\
 	CONCAT(d,pastenum)=ASM_DDA_FULL(quadrant);\
+	if (CONCAT(d,pastenum)==3)\
+	{\
+		tempval+=res*2;\
+		goto CONCAT(dda_done,pastenum);\
+	}\
 	curr_block=*ddacurrblock;\
-	tmaxx.data=*ddatmaxx;\
-	tmaxy.data=*ddatmaxy;\
-	tmaxz.data=*ddatmaxz;\
-	if (CONCAT(d,pastenum)!=3)\
-		goto CONCAT(blocky_stuff,pastenum);\
-	tempval+=res*2;\
-	goto CONCAT(dda_done,pastenum);\
-	CONCAT(blocky_stuff,pastenum):\
 	{\
 	uint8_t id=*curr_block;\
 	uint8_t tcolor;\
@@ -2441,6 +2021,9 @@ int* ddatmaxz = getddatmaxz();
 	}\
 	else\
 	{\
+		tmaxx.data=*ddatmaxx;\
+		tmaxy.data=*ddatmaxy;\
+		tmaxz.data=*ddatmaxz;\
 		if(id<=FLOORVOXELSEND)/*like carpets or redstone or pressure plates and stuff*/\
 		{\
 			if(id>=SLABSTART)\
@@ -2488,7 +2071,7 @@ int* ddatmaxz = getddatmaxz();
 			case 0:\
 			{\
 				tmaxx-=deltax;\
-				flint tzf=mlt32(dz,tmaxx)+((int)plz);\
+				flint tzf=mlt32(dz,tmaxx)+((int)plz)+half;\
 				flint tyf=mlt32(tdy,tmaxx)+((int)ply);\
 				int tz= (tzf.data&511)>>6;\
 				int ty = (tyf.data >> 3) & 0x38;\
@@ -2503,8 +2086,8 @@ int* ddatmaxz = getddatmaxz();
 			case (reg_block_num+1):\
 			{\
 				tmaxy-=deltay;\
-				flint txf=mlt32(dx,tmaxy)+((int)plx);\
-				flint tzf=mlt32(dz,tmaxy)+((int)plz);\
+				flint txf=mlt32(dx,tmaxy)+((int)plx)+half;\
+				flint tzf=mlt32(dz,tmaxy)+((int)plz)+half;\
 				int tx=((txf.data)&511)>>6;\
 				int tz = (tzf.data >> 3) & 0x38;\
 				tcolor=ltexturedata[(id<<2)+1][(tx)+tz];\
@@ -2518,8 +2101,8 @@ int* ddatmaxz = getddatmaxz();
 			case 2*(reg_block_num+1):\
 			{\
 				tmaxz-=deltaz;\
-				flint txf=mlt32(dx,tmaxz)+((int)plx);\
-				flint tyf=mlt32(tdy,tmaxz)+((int)ply);\
+				flint txf=(mlt32(dx,tmaxz))+((int)plx)+half;\
+				flint tyf=(mlt32(tdy,tmaxz))+((int)ply);\
 				int tx=((txf.data)&511)>>6;\
 				int ty = (tyf.data >> 3) & 0x38;\
 				tcolor=ltexturedata[(id<<2)+2][(tx)+ty];\
@@ -3087,6 +2670,7 @@ void draw_house(int hx, int y, int hz)
 	vis_map(hx+2,y+1,hz)=DOORBOTTOMOPEN;
 	vis_map(hx+2,y+2,hz)=DOORTOPOPEN;
 }
+void generate_nether();
 void generate_world(){
 	/** generates the world (from a seed you set before calling. first, generates a heightmap (hmap) full of random values.
 	Then, 5x5 gaussian blurs it to look more natural. I ain't doing no perlin noise with this calculator! 
@@ -3106,13 +2690,22 @@ void generate_world(){
 	Then, surrounds the world in barrier blocks (the same color as bg color so can't really tell).
 	Overflow/underflow means i don't actually have to fill in everything (because my array is flattened)**/
 	memset(world,0,WX*WY*WZ);
+	
+	if(realm==1)//if is nether
+	{
+		generate_nether();//generate nether
+		return;//and skip generating normal world
+	}
+	
+	
+	//realm==0:
+	
 	biome=randInt(0,4);//0 is grassland, 1 is snowy grassland 2 is desert,3 is forest 4 is snowy forest
 	//now time to add random parts of snow for snow biome
 	
 	
 	
 
-	
 	switch(biome)
 	{
 		case 0://grassland
@@ -3446,7 +3039,7 @@ void generate_chunk(uint8_t* chunk,int thischunkx,int thischunkz){*/
 	//border is 5
 	
 	
-	gfx_FillScreen(BG_COLOR);
+	gfx_FillScreen(bg_color);
 }
 */
 void decrease_item(int id)
@@ -3478,10 +3071,25 @@ void use_rawmutton()
 }
 void use_cookedmutton()
 {
-	playerhunger+=6;
+	playerhunger+=8;
 	if(playerhunger>20)
 		playerhunger=20;
 	decrease_item(COOKEDMUTTON);
+}
+void use_rawpork()
+{
+	playerhunger+=3;
+	if(playerhunger>20)
+		playerhunger=20;
+	decrease_item(RAWPORKCHOP);
+	
+}
+void use_cookedpork()
+{
+	playerhunger+=6;
+	if(playerhunger>20)
+		playerhunger=20;
+	decrease_item(COOKEDPORKCHOP);
 }
 void use_rottenflesh()
 {
@@ -3490,6 +3098,8 @@ void use_rottenflesh()
 		playerhunger=20;
 	decrease_item(ROTTENFLESH);
 }
+bool try_light_portal(uint8_t bx, uint8_t by, uint8_t bz);
+void spawn_nether_portal(uint8_t x,uint8_t& y,uint8_t z);
 void light_fire()
 {
 	keyup(kb_KeyStat);//just so don't make tons of fires
@@ -3497,6 +3107,17 @@ void light_fire()
 	uint8_t* temp=cross_hair_pt(block);
 	if(temp!=NULL)
 	{
+		if(*temp==OBSIDIAN)
+		{
+			int nblock = temp - world;
+			uint8_t z = nblock & (WZ-1);
+			nblock >>= YWS;
+			uint8_t y = nblock & (WY-1);
+			nblock >>= YWS;
+			uint8_t x = nblock;
+			if(try_light_portal(x,y,z))
+				return;
+		}
 		if(*temp!=TNT)
 		{
 			*block=FIRE;
@@ -3538,11 +3159,11 @@ void use_waterbucket()
 		}
 	}
 }
-gfx_sprite_t ** item_imgs;//            ={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh, diamond, coal, flint and steel}, flint,bucket, waterbcket;
-static void (*use_item[])(       ){      NULL,    NULL,  NULL,   NULL,     NULL,            NULL,        NULL, NULL,       NULL,      NULL,   NULL,       NULL,       NULL,       NULL, use_rawmutton,use_cookedmutton,use_rottenflesh, NULL ,NULL, light_fire,        NULL,   use_bucket,  use_waterbucket};
+gfx_sprite_t ** item_imgs;//            ={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh, diamond, coal, flint and steel}, flint,bucket, waterbcket;              rawpork,    cooked pork
+static void (*use_item[])(       ){      NULL,    NULL,  NULL,   NULL,     NULL,            NULL,        NULL, NULL,       NULL,      NULL,   NULL,       NULL,       NULL,       NULL, use_rawmutton,use_cookedmutton,use_rottenflesh, NULL ,NULL, light_fire,        NULL,   use_bucket,  use_waterbucket, use_rawpork,use_cookedpork};
 //                                  crafting table   furnace    planks   bed top glass   doortop   doorbottom magmablock  fire cacti, sandstone    irndmrdgldcl  tnt, tntlit, smoke gravel nthrprtl
 const static uint8_t recog_text_side[]={1,            2,         2,        1,    0,       2        ,0,0,0,         1,     0,    0,           0,     0,0,0,0, 0,   0,    0,      0,   0 ,    0};
-const static uint8_t unmirror[]={3,2,1,0,7,6,5,4};//yeah... i have a mirroring problem with textures.
+//const static uint8_t unmirror[]={3,2,1,0,7,6,5,4};//yeah... i have a mirroring problem with textures.
 // this is based off of an array that goes {0,1,2,3,4,5,6,7,8} and shows what the mirroring does (used in unmirroring for draw_item
 //because i mirrored all my textures so they don't look mirrored in the game.
 
@@ -3634,12 +3255,10 @@ inline void draw_itemnobuffer(int temp,int x,int y)
 		{
 			for(int y2=0;y2<8;++y2)
 			{
-				int realx=unmirror[x2];
-				int realy=unmirror[y2];
 				int color=texturedata[id][x2+(y2<<3)];
 				if (color!=26){
 					gfx_SetColor(color);
-					gfx_FillRectangle_NoClip((realx<<2)+x, (realy<<2)+y, 4, 4);
+					gfx_FillRectangle_NoClip((x2<<2)+x, y+((7-y2)<<2), 4, 4);
 				}
 			}
 		}
@@ -4216,7 +3835,7 @@ void clear_file_contents(uint8_t slot) {
     ti_Rewind(slot);
 }
 
-void save_world(char* wname)
+void save_world(char* wname,uint8_t nrealm=0)
 {
 	//memset(world,255,WX*WY*WZ);
 	/**IMPORTANT COMMENT FOR PEOPLE READING THIS CODE!!!**/
@@ -4225,6 +3844,15 @@ void save_world(char* wname)
 	but if I need more ram, it will spill over the first buffer and enter the visible screen. The worst case scenario
 	of memory is under 153600 (3000 for hmap)+(32768 for world) + (58000 for all the changes) + (58000 again, but this is for the back up of file)
 	is under 153600 (it is 150400 around).*/
+	switch(realm)
+	{
+		case 0:
+			wname[2]='O';
+			break;
+		case 1:
+			wname[2]='N';
+			break;
+	}
 	dbg_printf("saveworld wname: %s\n",wname);
 	unsigned short tempseedshort;
 	if(appvar_exists(wname))
@@ -4267,7 +3895,7 @@ void save_world(char* wname)
 	bool test=ti_Resize(totalsize,worldslot);
 	if(!test)
 	{
-		gfx_FillScreen(BG_COLOR);
+		gfx_FillScreen(bg_color);
 		gfx_SetTextFGColor(224); // Assuming 224 is Red in your palette
 		gfx_SetTextXY(10, 10);
 		gfx_PrintString("NOT ENOUGH RAM!!! Archiving some stuff...");
@@ -4288,7 +3916,7 @@ void save_world(char* wname)
 			goto resize;
 		}
 		//ok, now everything is screwed because can't save world.
-		gfx_FillScreen(BG_COLOR);
+		gfx_FillScreen(bg_color);
 		gfx_SetTextFGColor(224); // Assuming 224 is Red in your palette
 		gfx_SetTextXY(10, 10);
 		gfx_PrintString("Unable to save world");
@@ -4350,14 +3978,17 @@ void save_world(char* wname)
 		dbg_printf("tchunkx: %d, tchunkz:%d\n",tchunkx,tchunkz);
 		ti_Write(&respawnchunkx,sizeof(uint8_t),1,worldslot);
 		ti_Write(&respawnchunkz,sizeof(uint8_t),1,worldslot);
+		ti_Write(&nrealm,sizeof(uint8_t),1,worldslot);
+		ti_Write(&playerhp,sizeof(uint8_t),1,worldslot);
+		ti_Write(&playerhunger,sizeof(uint8_t),1,worldslot);
 	}
 	ti_Close(worldslot);
 	
 	dbg_printf("closed\n");
 
-	gfx_FillScreen(BG_COLOR);
+	gfx_FillScreen(bg_color);
 	gfx_SwapDraw();
-	gfx_FillScreen(BG_COLOR);
+	gfx_FillScreen(bg_color);
 	gfx_SwapDraw();
 	
 	reallocingworld:
@@ -4400,6 +4031,17 @@ void load_world(char* wname)
 		dbg_printf("main chunk\n");
 		memcpy(wname,origwname,9);
 	}
+	/*
+	switch(wname[2])
+	{
+		case 'O':
+			realm=0;
+			break;
+		case 'N':
+			realm=1;
+			break;
+	
+	*/
 	wseed=seed;
 	srandchunkseed(seed);
 	generate_world();
@@ -4443,7 +4085,11 @@ void load_world(char* wname)
 		
 		ti_Read(&respawnchunkx,sizeof(uint8_t),1,worldslotr);
 		ti_Read(&respawnchunkz,sizeof(uint8_t),1,worldslotr);
-		
+		ti_Read(&realm,sizeof(uint8_t),1,worldslotr);
+		playerhp=0;
+		playerhunger=0;
+		ti_Read(&playerhp,sizeof(uint8_t),1,worldslotr);
+		ti_Read(&playerhunger,sizeof(uint8_t),1,worldslotr);
 		dbg_printf("chunkx: %d, chunkz:%d, respawncx %d, respawn cz %d\n",chunkx,chunkz,respawnchunkx,respawnchunkz);
 	}
 	
@@ -4459,6 +4105,7 @@ void load_world(char* wname)
 
 void deleteallchunks(char* name)
 {
+	name[2]='O';
 	for(int x=0; x<62;++x)
 	{
 		for(int z=0; z<62;++z)
@@ -4469,11 +4116,16 @@ void deleteallchunks(char* name)
 			temp[7]=number2char(z);
 			if(appvar_exists(temp))
 				ti_Delete(temp);
+			temp[2]='N';
+			if(appvar_exists(temp))
+				ti_Delete(temp);
 		}
 	}
+	name[2]='N'; ti_Delete(name);
 }
 void archiveallchunks(char* name)
 {
+	name[2]='O';
 	for(int x=0; x<62;++x)
 	{
 		for(int z=0; z<62;++z)
@@ -4488,9 +4140,15 @@ void archiveallchunks(char* name)
 				{
 					set_archive(temp,true);
 				}
+				temp[2]='N';
+				if(appvar_exists(temp))
+					set_archive(temp,true);
 			}
 		}
-	}	
+	}
+	origwname[2]='N';
+	if(appvar_exists(origwname)) set_archive(origwname,true); 
+	origwname[2]='O';
 }
 
 void loadnewchunk()
@@ -4500,10 +4158,8 @@ void loadnewchunk()
 		bstacktop=0;//clear the array kind of
 		update_cleanup();//in case tnt was expldoing or something
 	}
-	//for(int i=0; i<SHEEPNUM;++i)
-	//	sheep[i].clear();
-	for(int i=0; i<ZOMBIENUM; ++i)
-		zombies[i].alive=false;
+	while(mob_count>0)
+    despawn_mob(mob_list[0]);
 
 	updatehotbar=2;
 	is_chunk=true;
@@ -4517,6 +4173,18 @@ void loadnewchunk()
 		memcpy(wname,origwname,6);
 		wname[6]=number2char(chunkx);
 		wname[7]=number2char(chunkz);
+	}
+	// 0 1   2      3 4 5     6        7
+	// M C[realm][worldnum][chunkx][chunkz]
+	switch(realm)
+	{
+		case 0:
+			wname[2]='O';//overworld
+			break;
+		case 1: 
+			wname[2]='N';//nether
+			biome=255;
+			break;
 	}
 	
 	
@@ -4537,15 +4205,191 @@ void loadnewchunk()
 	}
 	if(biome==0)
 	{
-		for(int i=0; i<SHEEPNUM;++i)
-			sheep[i].spawn();
+		for(int i=0; i<4;++i)
+		{
+			spawn_sheep();
+			spawn_pig();
+		}
+		dbg_printf("sheeeepp!\n");
+	}
+	else if (biome==255)//nether
+	{
+		for(int i=0; i<10;++i)
+		{
+			spawn_piglin();			
+		}
+		ply-=3;//because of nether roof
 	}
 	if(chunkx==32&&chunkz==32)
 	{
 		is_chunk=false;
 	}
 }
+//claude wrote this v v v
+void draw_portal(uint8_t sx, uint8_t sy, uint8_t sz)
+{
+	// 4 wide (x), 10 tall (y), 1 deep (z=sz)
+	if(sy>27) sy=27;
+	for (uint8_t x = sx; x < sx + 4; ++x)
+	{
+		for (uint8_t y = sy; y < sy + 5; ++y)
+		{
+			bool edge = (x == sx || x == sx + 3 || y == sy || y == sy + 4);
+			vis_map(x, y, sz) = edge ? OBSIDIAN : NETHERPORTAL;
+		}
+	}
+}
+//claude wrote this v v v 
+bool is_portal(uint8_t bx, uint8_t by, uint8_t bz, uint8_t* out_sx=nullptr, uint8_t* out_sy=nullptr, uint8_t* out_sz=nullptr, bool* z_oriented=nullptr)
+{
+	for (int dx = 0; dx < 4; ++dx)
+	for (int dy = 0; dy < 5; ++dy)
+	{
+		if (!(dx==0||dx==3||dy==0||dy==4)) continue; // candidate must be some border cell (corner ok too)
+		int sx = bx-dx, sy = by-dy;
+		if (sx<0||sy<0||sx+3>=WX||sy+4>=WY) continue;
 
+		bool ok=true;
+		for (int x=0; x<4 && ok; ++x)
+		for (int y=0; y<5 && ok; ++y)
+		{
+			bool corner = (x==0||x==3) && (y==0||y==4);
+			bool edge   = (x==0||x==3||y==0||y==4) && !corner;
+			uint8_t b = vis_map(sx+x,sy+y,bz);
+			if (edge && b!=OBSIDIAN) ok=false;
+			else if (!edge && !corner && b!=AIR) ok=false; // interior only
+		}
+		if (ok)
+		{
+			if(out_sx)*out_sx=sx; if(out_sy)*out_sy=sy; if(out_sz)*out_sz=bz;
+			if(z_oriented)*z_oriented=false;
+			return true;
+		}
+	}
+
+	for (int dz = 0; dz < 4; ++dz)
+	for (int dy = 0; dy < 5; ++dy)
+	{
+		if (!(dz==0||dz==3||dy==0||dy==4)) continue;
+		int sz = bz-dz, sy = by-dy;
+		if (sz<0||sy<0||sz+3>=WZ||sy+4>=WY) continue;
+
+		bool ok=true;
+		for (int z=0; z<4 && ok; ++z)
+		for (int y=0; y<5 && ok; ++y)
+		{
+			bool corner = (z==0||z==3) && (y==0||y==4);
+			bool edge   = (z==0||z==3||y==0||y==4) && !corner;
+			uint8_t b = vis_map(bx,sy+y,sz+z);
+			if (edge && b!=OBSIDIAN) ok=false;
+			else if (!edge && !corner && b!=AIR) ok=false;
+		}
+		if (ok)
+		{
+			if(out_sx)*out_sx=bx; if(out_sy)*out_sy=sy; if(out_sz)*out_sz=sz;
+			if(z_oriented)*z_oriented=true;
+			return true;
+		}
+	}
+	return false;
+}
+//claude wrote this as well v v v
+bool try_light_portal(uint8_t bx, uint8_t by, uint8_t bz)
+{
+	uint8_t sx, sy, sz;
+	bool z_oriented;
+	if (!is_portal(bx, by, bz, &sx, &sy, &sz, &z_oriented))
+		return false;
+
+	if (!z_oriented)
+	{
+		for (int x = 1; x < 3; ++x)
+			for (int y = 1; y < 4; ++y)
+				vis_map(sx+x, sy+y, sz) = NETHERPORTAL;
+	}
+	else
+	{
+		for (int z = 1; z < 3; ++z)
+			for (int y = 1; y < 4; ++y)
+				vis_map(sx, sy+y, sz+z) = NETHERPORTAL;
+	}
+	return true;
+}
+//but not v v v
+
+void break_portal_helper(uint8_t* block)
+{
+	dbg_printf("Checking neighbor block ID: %d\n", *block);
+	if(*block==NETHERPORTAL)
+	{
+		*block=0;
+		break_portal_helper(block+XJ);
+		break_portal_helper(block-XJ);
+
+		break_portal_helper(block+YJ);
+		break_portal_helper(block-YJ);
+
+		break_portal_helper(block+ZJ);
+		break_portal_helper(block-ZJ);
+	}
+}
+void break_portal(uint8_t*block)
+{
+	dbg_printf("this is happening right: %d\n", *block);
+	break_portal_helper(block+XJ);
+	break_portal_helper(block-XJ);
+
+	break_portal_helper(block+YJ);
+	break_portal_helper(block-YJ);
+
+	break_portal_helper(block+ZJ);
+	break_portal_helper(block-ZJ);
+
+}
+void spawn_nether_portal(uint8_t x,uint8_t& y,uint8_t z)
+{
+	if(x<1)  x=1;
+	if(x>27) x=27;          
+	if(z<2)  z=2;
+	if(z>29) z=29;
+
+	if(plx>27) plx=27;
+	if(plx<1) plx=1;
+	if(plz<2) plz=2;
+	if(plz>29) plz=29; 
+	bool has_hit_air=false;
+	for(y=31;y>0;--y)
+	{
+		if(vis_map(x,y,z)==AIR)
+			has_hit_air=true;
+		if(has_hit_air)
+		{
+			if(vis_map(x,y,z))//anything other than air
+			{
+				draw_portal(x,y,z);
+				break;
+			}
+		}
+	}
+}
+bool find_nether_portal(uint8_t&x,uint8_t&y,uint8_t&z)
+{
+	for(x=0;x<32;++x)
+	{
+		for(z=0;z<32;++z)
+		{
+			for(y=31;y>0;y--)
+			{
+				if(vis_map(x,y,z)==NETHERPORTAL)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+uint8_t realmcooldown=0;
 inline bool walk_thru_block(int blockid)
 {
 	if(blockid==0)
@@ -4562,7 +4406,43 @@ inline bool walk_thru_block(int blockid)
 		return true;
 	if(blockid==WATERFALL)
 		return true;
-	
+	if(blockid==NETHERPORTAL)
+	{
+		if(realmcooldown==0)
+		{
+
+			realmcooldown=30;
+			save_world(wname);
+			if(realm==0)
+			{
+				realm=1;
+				change_bg(NETHERBGCOLOR);
+			}
+			else if(realm==1)
+			{
+				realm=0;
+			}
+			//not using not because might add end dimesnion eventually
+			
+			loadnewchunk();
+			uint8_t x,y,z;
+			if(find_nether_portal(x,y,z))
+			{
+				plx=x;
+				ply=y;
+				plz=z;
+			}
+			else
+			{
+				uint8_t ry;
+				spawn_nether_portal((int)plx,ry,(int)plz);
+				ply=ry+1;
+				plx+=1;
+			}
+			return false;
+		}
+		return true;
+	}
 	return false;
 }
 void try_walk(flint dirx, flint dirz)
@@ -4614,6 +4494,7 @@ void try_walk(flint dirx, flint dirz)
 		iplx=(int)plx;//updates it
 		if ( (walk_thru_block(vis_map(iplx,iply,nz))&&walk_thru_block(vis_map(iplx,iply-1,nz))) ||vis_map(iplx,iply,nz)==DOORTOPCLOSED)
 			plz+=dirz;
+		
 	}
 }
 
@@ -4630,7 +4511,7 @@ void gc_after(void)
 	MNCFTIMG_init();
 }
 
-void break_block(uint8_t* block)
+int break_block(uint8_t* block)
 {
 	uint8_t iv;
 	uint8_t bv=*block;
@@ -4660,6 +4541,14 @@ void break_block(uint8_t* block)
 			if(randInt(0,4)==0)//I know, it should be 1 out of 8 but that is really annoying in real minecraft so I changed it
 				iv=FLINT;
 			break;
+
+		case NETHERPORTAL:
+			iv=0;
+			//fallthough is purposeful here
+		case OBSIDIAN://break_portal will fail if isn't portal so is ok
+			break_portal(block);
+			break;
+		
 	}
 	if(iv)//iv!=0
 	{
@@ -4683,6 +4572,7 @@ void break_block(uint8_t* block)
 		//update_changes(0,block);
 		*block=0;
 	}
+	return iv;
 }
 const char* keybinds[]=
 {
@@ -4807,9 +4697,8 @@ int main(void){
 	}
 	ti_SetGCBehavior(gc_before, gc_after);
 	MNCFTIMG_init();
-	gfx_sprite_t* tempimgs[]={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh,diamond,coal,flintandsteeeel,flintitem,bucket,waterbucket};
+	gfx_sprite_t* tempimgs[]={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh,diamond,coal,flintandsteeeel,flintitem,bucket,waterbucket,rawporkchop,cookedporkchop};
 	gfx_sprite_t* tempimgs2[]={emptyfurnaceflames,furnaceflames1,furnaceflames2,furnaceflames3,furnaceflames4,furnaceflames5};
-	
 	item_imgs=tempimgs;
 	flames=tempimgs2;
 	for (int i=0;i<64;i++)
@@ -4873,40 +4762,8 @@ int main(void){
 	}
 	*/
 	int choice=menu(options,5);
-	/**Courtesy of Claude: (they wrote that giant huge comment. I know AI is evil but documentation is a pain!)**/
-	/* ============================================================
-	 * SAVE FILE FORMATS
-	 * ============================================================
-	 * MNCFTD (world list):
-	 *   [0]      1B   version (always 0)
-	 *   [1]      1B   N = number of worlds
-	 *   [2..]    22B * N   one entry per world:
-	 *     [0-15]  16B  world name (not guaranteed null-padded)
-	 *     [16-18] 3B   literal "MCO"
-	 *     [19-21] 3B   zero-padded world number, e.g. "167"
-	 *                  -> bytes [16-21] = save slot name, e.g. "MCO167"
-	 *
-	 * Per-world save (e.g. "MCO167"):
-	 *   [0-1]    2B          seed (unsigned short)
-	 *   [2-59]   58B         sizes[MOBSTART] (unsigned short each) =
-	 *                        # of valid (non-65535) entries per block ID
-	 *                        in world_changes[], NOT array capacity
-	 *   [60..]   sum(sizes[i])*2 B
-	 *                        for i=0..MOBSTART-1: sizes[i] entries of unsigned short,
-	 *                        each a flat index into world[] (b = block - world)
-	 *   [next]   sizeof(int) num2read2[0] = block_num+item_num (inventory count)
-	 *   [next]   sizeof(int) * (block_num+item_num)
-	 *                        inventory[] array
-	 *   [next]   sizeof(int) * 3
-	 *                        plx.data, ply.data, plz.data (raw fixed-point, NOT plain ints)
-	 *   [next]   sizeof(uint32_t)
-	 *                        elapsed play time -> offsettime on next load
-	 *
-	 * NOTE: sizeof(int) is 3 bytes (24-bit) on this toolchain, not 4.
-	 * NOTE: header is 66 bytes total (2 seed + 64 sizes) -- world_changes
-	 *       data must be seeked/written starting at offset 66, not 34.
-	 * ============================================================ */
-	 /** CLIFF NOTES (wrote by me):
+
+	 /** save formats (wrote by me):
 	 header:
 	 
 		 version			 [1 byte]
@@ -4926,6 +4783,7 @@ int main(void){
 		hotbar                                         [8 bytes]
 		player's position in fixed point format        [3 bytes]
 		game time (for daylight cycle)                 [1 bytes]
+		
 	 **/
 	if(choice==-1)
 	{
@@ -5012,6 +4870,7 @@ int main(void){
 		os_GetStringInput("Enter seed: ", buffer2,sizeof(buffer2));
 		seed=atoi(buffer2);
 		srandchunkseed(seed);
+		
 		generate_world();
 		wseed=seed;
 		memcpy(origwname,temp2,9);
@@ -5132,6 +4991,13 @@ int main(void){
 		goto beginning;
 		
 	}
+	else if(choice==4)//view controls
+	{
+		
+		gfx_End();
+		goto beginning;
+		
+	}
 	// stores block ids and will appear on screen
 	uint8_t* hotbar =&ghotbar[0];
 	{
@@ -5191,7 +5057,7 @@ int main(void){
 	//gfx_End();
 	
 	// doing caching for speeeeed
-	flint fl256=256;
+	flint fl256=512;
 	
 	inv_table=inv_tabler+750;
 	for (int i = -750; i < 750; i++) {
@@ -5287,11 +5153,6 @@ int main(void){
 	
 	rtc_Enable(0); 
     srand(rtc_Time()); 
-	if(biome==0)
-	{
-		for(int i=0; i<SHEEPNUM;++i)
-			sheep[i].spawn();
-	}
 	//end mob stuff
 	gfx_SetTextFGColor(0);
 	superstop=false;
@@ -5301,18 +5162,24 @@ int main(void){
 
 	//goto end;
 	gfx_palette[1] = gfx_RGBTo1555(40, 40, 40);
+	clock_t last_update = clock();
+	clock_t last_place = clock();
+	std::clock_t t1=1;
+	uint8_t update_count=0;
 	while (1)
 	{		
-		playerhp=10;
-		playerhunger=20;
+		
 		if (!alive)
 		{
+			playerhp=20;
+			playerhunger=20;
 			plx=respawnx;
 			ply=respawny;
 			plz=respawnz;
-			if(chunkx!=respawnchunkx||chunkz!=respawnchunkz)
+			if(chunkx!=respawnchunkx||chunkz!=respawnchunkz||realm!=0)
 			{
 				save_world(wname);
+				realm=0;
 				chunkx=respawnchunkx;
 				chunkz=respawnchunkz;
 				flint tempply=ply;
@@ -5323,76 +5190,40 @@ int main(void){
 			//add respawn chunkx and z
 		}
 		alive=true;
-		gfx_FillScreen(BG_COLOR);
+		gfx_FillScreen(bg_color);
 		updatehotbar=2;
 		//dbg_printf("magmablock: %d fire: %d\n",MAGMABLOCK,FIRE);
 		int lspeed=0;//look speed multiplier
+		inventory[OBSIDIAN]=67;
+		hotbar[1]=OBSIDIAN;
+		hotbar[2]=FLINTANDSTEEL;
+		hotbar[0]=DIAMONDPIC;
+		inventory[FURNACE]=10;
+		inventory[BEDTOP]=10;
+		hotbar[3]=BEDTOP;
+		hotbar[4]=FURNACE;
+		uint8_t y;
+		spawn_nether_portal(10,y,10);
+		if(realm==1)
+			change_bg(NETHERBGCOLOR);
 		while (alive){
 			//dbg_printf("gfx_vbuffer=%p\n", (void*)gfx_vbuffer);
 			call_update();
 			frame+=1;
+			if(realmcooldown>0)
+				realmcooldown--;
 			//dbg_printf("chunkx: %d, chunkz: %d\n",chunkx,chunkz);
 			//dbg_printf("plx: %d, plz: %d\n",(int)plx,(int)plz);
-			if((frame&1)==0)
-			{
-				auto ltexturedata = (texturedata - ((reg_block_num+1) << 2));
-				constexpr int tempid=LITTNT<<2;
-				if((frame&3)==0)
-				{
-					ltexturedata[tempid+0]=tntxz;
-					ltexturedata[tempid+1]=tnty;
-					ltexturedata[tempid+2]=tntxz;
-				}
-				else
-				{
-					ltexturedata[tempid+0]=grey;
-					ltexturedata[tempid+1]=grey;
-					ltexturedata[tempid+2]=grey;
-				}
-				
-				for(int i=0; i<ZOMBIENUM;++i)
-				{
-					if(zombies[i].alive)
-					{
-						zombies[i].move();
-						if(wtime<10)
-						{
-							if (zombies[i].hp>0)//if day and zombie hp>0
-							{
-								zombies[i].hp-=3;
-							}
-						}
-					}
-					else
-					{
-						if(wtime>9)
-						{
-							zombies[i].alive=true;
-							zombies[i].spawn();		
-							zombies[i].hp=20;
-						}
-					}
-					
-					if(zombies[i].hp<1)
-					{
-						zombies[i].clear();
-						zombies[i].alive=false;
-						zombies[i].hp=20;
-					}
-				}
-			}
 			
-			if((frame&15)==0)//every 3 ish seconds
+			if((frame&15)==0)//every 2 ish seconds
 			{
-				if(playerhunger>17&&playerhp<10)
+				if(playerhunger>17&&playerhp<20)
 				{
 					playerhp+=1;
 					playerhunger-=randInt(1,2);
 					updatehotbar=2;
 				}
-			}
-			if((frame&15)==0)//every 3 ish seconds
-			{
+				
 				uint32_t temps=clock()-start_time;
 				temps+=offsettime;
 				uint32_t elapsed_seconds=(unsigned int)(temps>>15);
@@ -5405,28 +5236,40 @@ int main(void){
 				wtime=((int)elapsed_seconds)%20;//what time of day in world. 0-9 is day, 10-19 is night
 				dbg_printf("s %lu g %lu w %d\n",start_time,*gstarttime,wtime);
 				//dbg_printf("wtime: %d\n",wtime);
-				BG_COLOR=bg_colors[wtime];//bg_color was macro, but i decided i wanted daylight cycle so is now variable
-				colors[5]=BG_COLOR;
-				colors[5+reg_block_num+1]=BG_COLOR;//changing color of barrier block
-				colors[5+2*(reg_block_num+1)]=BG_COLOR;
-			}
-			//mob stuff!
-			if(biome==0)
-			{
-				
-				for(int i=0; i<SHEEPNUM;++i)
+
+				if(realm==0)
 				{
-					if(randInt(0,AVERAGEFPS)==0){
-						sheep[i].move();
-						sheep[i].randturn();
+					change_bg(bg_colors[wtime]);//bg_color was macro, but i decided i wanted daylight cycle so is now variable
+					
+					if(biome==0&&mob_count<10)
+					{
+						if(!randInt(0,4))//so on average every 15 seconds (0,4 has 5 outcomes)
+						{
+							spawn_sheep();
+						}
+						if(!randInt(0,4))//so on average every 15 seconds (0,4 has 5 outcomes)
+						{
+							spawn_pig();
+						}
+					}
+					if(!randInt(0,2))//every 5 ish seconds
+					{
+						if(wtime>9)
+							spawn_zombie();
 					}
 				}
-				
+				else if (realm==1)
+				{
+					if(!randInt(0,6)&&mob_count<10)//so on average every 21 seconds. this is because spawn 10 on each new chunk load. is supposed to help people build.
+					{
+						spawn_piglin();
+					}
+				}
 			}
-			
-			//gfx_FillScreen(BG_COLOR); 
+
+
 			gfx_Wait();
-			notfullfillscreen(BG_COLOR,&gfx_vbuffer[0][0]);
+			notfullfillscreen(bg_color,&gfx_vbuffer[0][0]);
 			kb_Scan(); // Update the key status
 			if(kb_IsDown(kb_KeyMath))
 			{
@@ -5490,621 +5333,692 @@ int main(void){
 					dirz=-1;
 			}
 			//dbg_printf("X: %d, Y: %d, Z: %d\n",(int)plx,(int)ply,(int)plz);
-			if (kb_IsDown(kb_Key2nd)) 
-				try_walk(dirx,dirz);
-			else if (kb_IsDown(kb_KeyAlpha)) {
-				try_walk(-dirx,-dirz);
-			}
-
-			 if(ply>WY-2)
-				 ply=WY-2;
-			 if(ply<0)
-				 ply=0;
-			 if ((kb_Data[3] & kb_GraphVar)||is_in_crafting_table) {//xton
-				while (kb_Data[3] & kb_GraphVar)
+			if(clock()-last_update> CLOCKS_PER_SEC / 7)//happens 7 times a second
+			{
+				if(update_count&1)//happens around 3.5 times a second
 				{
-					kb_Scan();//do nothing, wait until they release
-				}
-				int crafting_table[3][3][2]={};// all should be 0. syntax is x,y,(num,id)
-				
-				bool prevup=0;
-				bool prevdown=0;
-				bool prevright=0;
-				bool prevleft=0;
-				bool prevadd=0;
-				bool prevminus=0;
-				bool prevalpha=0;
-				bool prev2nd=0;
-				
-				int cursor=0;
-				uint8_t cursorcolor=231;//231 is yellow
-				int cursorblock=0;
-				int from_where=0;//where item is being moved from
-				int cursornum=0;// for crafting table item splitting
-				int where=0;//0 is inventory, 1 is hotbar, 2 is crafting table
-				int scroll=0;
-				build_visible_ids();
-				while (!(kb_Data[3] & kb_GraphVar||kb_IsDown(kb_KeyClear)))// if press it again, break
-				{
-					
-					gfx_SwapDraw();
-					gfx_FillScreen(75);
-					gfx_SetDrawBuffer();
-
-					kb_Scan();
-
-					int c=0;
-					if (where==1){
-						
-						gfx_SetColor(cursorcolor);
-						gfx_FillRectangle(cursor*40,200,40,40);
-						if(cursor>7)
-						{
-							cursor=0;
-							where++;
-						}
-						if(cursor<0){
-							where--;
-							cursor=num_visible-1;
-						}
-					}
-					for (int i=5; i<320;i+=40)// draws hotbar
-					{						
-						int temp=hotbar[c];
-						draw_item(temp,i,205,1);
-						/*
-						if(temp<block_num)//if block
-						{
-							gfx_SetColor(block_colors_y[temp]);
-							gfx_FillRectangle_NoClip(i,205,30,30);
-							gfx_SetColor(0);
-							gfx_SetTextXY(i+20, 220);
-							gfx_PrintInt(inventory[temp],0);
-						}
-						else//if item
-						{
-							gfx_Sprite(item_imgs[temp-block_num], i, 205);
-						}*/
-						++c;
-						
-					}
-					int x=2;
-					int y=2;
-					if((uint8_t)scroll%12)
-						y=6;
-					if(where==0)
+					uint8_t x,y,z;
+					x=(int)plx;
+					y=(int)ply;
+					z=(int)plz;
+					uint8_t underblock=vis_map(x,y-2,z);//remeber: barrier at bottom so prob no wrap around
+					switch(underblock)
 					{
-						if(cursor-scroll<36)
-							scroll-=6;
-						if(cursor-scroll>35)
-							scroll+=6;
-						if(scroll<0)
-							scroll=0;
+						case MAGMABLOCK:
+							playerhp--;
+							updatehotbar=2;
+							break;
 					}
-					else
-						scroll=0;
-					dbg_printf("Scroll: %d, Cursor: %d\n",scroll,cursor);
-					int count=0;
-					for(int vi=scroll; vi<num_visible; ++vi){
-						if(count>35) break;
+					uint8_t feetblock=vis_map(x,y-1,z);//remeber: barrier at bottom so prob no wrap around
+					uint8_t headblock=vis_map(x,y+1,z);//remeber: barrier at bottom so prob no wrap around
+					if(headblock||feetblock==FIRE)
+					{
+						playerhp--;
+						updatehotbar=2;
+					}
+				}
+				auto ltexturedata = (texturedata - ((reg_block_num+1) << 2));
+				constexpr int tempid=LITTNT<<2;
+				if((frame&3)==0)
+				{
+					ltexturedata[tempid+0]=tntxz;
+					ltexturedata[tempid+1]=tnty;
+					ltexturedata[tempid+2]=tntxz;
+				}
+				else
+				{
+					ltexturedata[tempid+0]=grey;
+					ltexturedata[tempid+1]=grey;
+					ltexturedata[tempid+2]=grey;
+				}
+				update_all_mobs();
+				if(realm==0)
+				{
+					manage_nocturnal_vmobs(vmob_pool, VMOB_POOL_SIZE,  wtime, 3);
+				}
+				
+				
+				if (kb_IsDown(kb_Key2nd)) 
+				{
+					try_walk(dirx,dirz);
+					last_update=clock();
+				}
+				else if (kb_IsDown(kb_KeyAlpha)) {
+					try_walk(-dirx,-dirz);
+					last_update=clock();
+				}
+				
+				 if(ply>WY-2)
+					 ply=WY-2;
+				 if(ply<0)
+					 ply=0;
+				 if ((kb_Data[3] & kb_GraphVar)||is_in_crafting_table) {//xton
+					while (kb_Data[3] & kb_GraphVar)
+					{
+						kb_Scan();//do nothing, wait until they release
+					}
+					int crafting_table[3][3][2]={};// all should be 0. syntax is x,y,(num,id)
+					
+					bool prevup=0;
+					bool prevdown=0;
+					bool prevright=0;
+					bool prevleft=0;
+					bool prevadd=0;
+					bool prevminus=0;
+					bool prevalpha=0;
+					bool prev2nd=0;
+					
+					int cursor=0;
+					uint8_t cursorcolor=231;//231 is yellow
+					int cursorblock=0;
+					int from_where=0;//where item is being moved from
+					int cursornum=0;// for crafting table item splitting
+					int where=0;//0 is inventory, 1 is hotbar, 2 is crafting table
+					int scroll=0;
+					build_visible_ids();
+					while (!(kb_Data[3] & kb_GraphVar||kb_IsDown(kb_KeyClear)))// if press it again, break
+					{
 						
-						count++;
-						int i=visible_ids[vi];
-						int flag=1;
-						for(int j=0;j<8;++j){
-							if (i==hotbar[j])// if item in hotbar don't draw it
-								flag=0;
-						}
-						for(int x=0;x<3;x++)
-						{
-							for(int y=0;y<3;y++)
+						gfx_SwapDraw();
+						gfx_FillScreen(75);
+						gfx_SetDrawBuffer();
+
+						kb_Scan();
+
+						int c=0;
+						if (where==1){
+							
+							gfx_SetColor(cursorcolor);
+							gfx_FillRectangle(cursor*40,200,40,40);
+							if(cursor>7)
 							{
-								if(i==crafting_table[x][y][0])
-									flag=0;
+								cursor=0;
+								where++;
+							}
+							if(cursor<0){
+								where--;
+								cursor=num_visible-1;
 							}
 						}
-						gfx_SetColor(0);
+						for (int i=5; i<320;i+=40)// draws hotbar
+						{						
+							int temp=hotbar[c];
+							draw_item(temp,i,205,1);
+							/*
+							if(temp<block_num)//if block
+							{
+								gfx_SetColor(block_colors_y[temp]);
+								gfx_FillRectangle_NoClip(i,205,30,30);
+								gfx_SetColor(0);
+								gfx_SetTextXY(i+20, 220);
+								gfx_PrintInt(inventory[temp],0);
+							}
+							else//if item
+							{
+								gfx_Sprite(item_imgs[temp-block_num], i, 205);
+							}*/
+							++c;
+							
+						}
+						int x=2;
+						int y=2;
+						if((uint8_t)scroll%12)
+							y=6;
 						if(where==0)
 						{
-							if(vi==cursor)
-							{                 // was i==cursor+1
-								gfx_SetColor(cursorcolor);
-								gfx_FillRectangle(x-3,y-3,36,36);
-								gfx_SetColor(0);
+							if(cursor-scroll<36)
+								scroll-=6;
+							if(cursor-scroll>35)
+								scroll+=6;
+							if(scroll<0)
+								scroll=0;
+						}
+						else
+							scroll=0;
+						dbg_printf("Scroll: %d, Cursor: %d\n",scroll,cursor);
+						int count=0;
+						for(int vi=scroll; vi<num_visible; ++vi){
+							if(count>35) break;
+							
+							count++;
+							int i=visible_ids[vi];
+							int flag=1;
+							for(int j=0;j<8;++j){
+								if (i==hotbar[j])// if item in hotbar don't draw it
+									flag=0;
 							}
-							if(cursor>num_visible-1)       // was invenblocknum+item_num-1
+							for(int x=0;x<3;x++)
 							{
-								where++;
-								cursor=0;
+								for(int y=0;y<3;y++)
+								{
+									if(i==crafting_table[x][y][0])
+										flag=0;
+								}
 							}
+							gfx_SetColor(0);
+							if(where==0)
+							{
+								if(vi==cursor)
+								{                 // was i==cursor+1
+									gfx_SetColor(cursorcolor);
+									gfx_FillRectangle(x-3,y-3,36,36);
+									gfx_SetColor(0);
+								}
+								if(cursor>num_visible-1)       // was invenblocknum+item_num-1
+								{
+									where++;
+									cursor=0;
+								}
+							if(cursor<0)
+							{
+								where=2;
+								cursor=8;
+								if(!is_in_crafting_table)
+									cursor=4;
+							}
+							}
+							if (inventory[i]==0)
+								flag=0;// don't draw if nothing there
+							
+							gfx_FillRectangle_NoClip(x,y,30,30);
+							if (flag){
+								draw_item(i,x,y,1);
+							}
+							/*
+							if(i<DOORBOTTOMOPEN||i>DOORBOTTOMCLOSED)
+								x+=33;
+							*/
+							x+=33;
+							if (x+30>200){
+								x=2;
+								y+=33;
+							}
+							
+						}
+					// now drawing crafting portion
+					gfx_SetColor(175);
+					gfx_FillRectangle_NoClip(200,0,120,120);//lime green part
+					if (!is_in_crafting_table)
+					{
+						gfx_SetColor(140);
+						gfx_FillRectangle_NoClip(275,0,45,75);
+						gfx_FillRectangle_NoClip(200,75,120,45);
+					}
+					gfx_SetColor(64);
+					
+					gfx_FillRectangle_NoClip(200,35,120,10);// horizantal ones			
+					gfx_FillRectangle_NoClip(200,75,120,10);
+					
+					gfx_FillRectangle_NoClip(235,0,10,120);//vertical ones.
+					gfx_FillRectangle_NoClip(275,0,10,120);
+					int size=3;
+					if (!is_in_crafting_table)
+					{
+						size=2;
+						draw_trans_rect_fake(275,0,45,75,74);
+						draw_trans_rect_fake(200,75,120,45,74);
+						if(where==2)//crafting table
+						{
+							if(cursor%3>1)//to far right
+								cursor++;//move it down one
+							if(cursor>5){//to far down
+								where=0;
+								cursor=0;
+							}							
+						}
+					}
+					if(where==2){
 						if(cursor<0)
 						{
-							where=2;
-							cursor=8;
-							if(!is_in_crafting_table)
-								cursor=4;
+							where--;
+							cursor=7;
 						}
-						}
-						if (inventory[i]==0)
-							flag=0;// don't draw if nothing there
-						
-						gfx_FillRectangle_NoClip(x,y,30,30);
-						if (flag){
-							draw_item(i,x,y,1);
-						}
-						/*
-						if(i<DOORBOTTOMOPEN||i>DOORBOTTOMCLOSED)
-							x+=33;
-						*/
-						x+=33;
-						if (x+30>200){
-							x=2;
-							y+=33;
-						}
-						
-					}
-				// now drawing crafting portion
-				gfx_SetColor(175);
-				gfx_FillRectangle_NoClip(200,0,120,120);//lime green part
-				if (!is_in_crafting_table)
-				{
-					gfx_SetColor(140);
-					gfx_FillRectangle_NoClip(275,0,45,75);
-					gfx_FillRectangle_NoClip(200,75,120,45);
-				}
-				gfx_SetColor(64);
-				
-				gfx_FillRectangle_NoClip(200,35,120,10);// horizantal ones			
-				gfx_FillRectangle_NoClip(200,75,120,10);
-				
-				gfx_FillRectangle_NoClip(235,0,10,120);//vertical ones.
-				gfx_FillRectangle_NoClip(275,0,10,120);
-				int size=3;
-				if (!is_in_crafting_table)
-				{
-					size=2;
-					draw_trans_rect_fake(275,0,45,75,74);
-					draw_trans_rect_fake(200,75,120,45,74);
-					if(where==2)//crafting table
-					{
-						if(cursor%3>1)//to far right
-							cursor++;//move it down one
-						if(cursor>5){//to far down
+						if(cursor>=9)
+						{
 							where=0;
 							cursor=0;
-						}							
+						}
 					}
-				}
-				if(where==2){
-					if(cursor<0)
-					{
-						where--;
-						cursor=7;
-					}
-					if(cursor>=9)
-					{
-						where=0;
-						cursor=0;
-					}
-				}
-				for(int x=0; x<size;++x){
-					for(int y=0;y<size;++y)
-					{
-						if (crafting_table[x][y][1]<=0)
-							crafting_table[x][y][0]=0;
-						int temp=crafting_table[x][y][0];
+					for(int x=0; x<size;++x){
+						for(int y=0;y<size;++y)
+						{
+							if (crafting_table[x][y][1]<=0)
+								crafting_table[x][y][0]=0;
+							int temp=crafting_table[x][y][0];
 
-						if(where==2){
-							if(cursor==x+y*3)
+							if(where==2){
+								if(cursor==x+y*3)
+								{
+									gfx_SetColor(cursorcolor);
+									gfx_FillRectangle_NoClip(205+x*40,5+y*40,30,30);
+								}
+								
+							}
+							if(temp)//!=0
 							{
-								gfx_SetColor(cursorcolor);
-								gfx_FillRectangle_NoClip(205+x*40,5+y*40,30,30);
+								int draw_x=205+x*40;
+								int draw_y=5+y*40;
+								draw_item(temp,draw_x,draw_y,0);
+								gfx_SetColor(255);
+								gfx_SetTextXY(draw_x+20,draw_y+20);
+								gfx_PrintInt(crafting_table[x][y][1],0);
+								if(cursor==x+y*3)
+								{
+									if(where==2&&crafting_table[x][y])//!=0
+									{
+										draw_trans_rect_fake_less_dark(205+x*40,5+y*40,30,30,cursorcolor);
+									}
+								}
 							}
 							
 						}
-						if(temp)//!=0
+					}
+					//dbg_printf("cursor pos: %d, where: %d\n",cursor,where);
+					if (kb_IsDown(kb_KeyEnter))
+					{
+						int num;
+						int id=recipie_to_id(crafting_table,num);
+						if (id!=-1)
 						{
-							int draw_x=205+x*40;
-							int draw_y=5+y*40;
-							draw_item(temp,draw_x,draw_y,0);
-							gfx_SetColor(255);
-							gfx_SetTextXY(draw_x+20,draw_y+20);
-							gfx_PrintInt(crafting_table[x][y][1],0);
-							if(cursor==x+y*3)
+							for(int x=0; x<3;x++)
 							{
-								if(where==2&&crafting_table[x][y])//!=0
+								for(int y=0; y<3;y++)
 								{
-									draw_trans_rect_fake_less_dark(205+x*40,5+y*40,30,30,cursorcolor);
+									if (crafting_table[x][y][0]!=0){
+										inventory[crafting_table[x][y][0]]--;
+										crafting_table[x][y][0]=0;
+									}
 								}
 							}
+							inventory[id]+=num;
+							crafting_table[1][1][0]=id;
+							crafting_table[1][1][1]=inventory[id];
+							if(cursorblock==id)
+							{
+								cursornum=0;
+								cursorblock=0;
+							}
+						}
+					}
+					
+					if (kb_IsDown(kb_KeyDown))
+					{
+						if(prevdown){
+							if (where==0)
+							{
+								//int pcursor=cursor;
+								cursor+=6;
+								/*
+								if(pcursor<DOORBOTTOMCLOSED+1&&cursor>DOORTOPOPEN)
+									cursor+=3;
+								*/
+							}
+							if(where==2)
+								cursor+=3;
+							//msleep(200);
+						}
+						prevdown=0;
+					}					
+					else
+						prevdown=1;
+					
+
+					if (kb_IsDown(kb_KeyUp))
+					{
+						if(prevup){
+							if (where==0)
+							{
+								//int pcursor=cursor;
+								cursor-=6;
+								/*
+								if(pcursor>DOORBOTTOMCLOSED&&cursor<DOORTOPOPEN+1)
+									cursor-=3;
+								*/
+							}
+							if(where==2)
+								cursor-=3;
+							//msleep(200);
+						}
+						prevup=0;
+					}					
+					else 
+						prevup=1;
+					
+					if (kb_IsDown(kb_KeyAlpha))//split if on crafting table
+					{
+						if(where==2&&prevalpha){
+							if(cursorcolor==135)//already is in alpha
+							{
+							goto key2ndforce;
+							}
+							cursorblock=crafting_table[cursor%3][cursor/3][0];
+							cursornum=crafting_table[cursor%3][cursor/3][1]/2;
+							crafting_table[cursor%3][cursor/3][1]-=cursornum;//splits in half
+							cursorcolor=135;
+							from_where=2;
+						}
+						prevalpha=0;
+					}
+					else
+						prevalpha=1;
+					if (kb_IsDown(kb_KeyRight))// increase hotbarblock
+					{
+						if(prevright){
+						cursor++;
+						//msleep(200);
+						}
+						prevright=0;
+						if(where==0)
+						{
+							/*
+							if(cursor>DOORTOPOPEN&&cursor<DOORBOTTOMCLOSED+1)
+								cursor=DOORBOTTOMCLOSED+1;
+							*/
+						}
+					}
+					else
+						prevright=1;
+					
+					if (kb_IsDown(kb_KeyLeft))
+					{
+
+						if(prevleft){
+						cursor--;
+						//msleep(200);
+						}
+						prevleft=0;
+						if(where==0)
+						{
+							/*
+							if(cursor<DOORBOTTOMCLOSED+1&&cursor>DOORTOPOPEN)
+								cursor=DOORTOPOPEN;
+							*/
+						}
+					}					
+					else
+						prevleft=1;
+					
+					if(kb_IsDown(kb_KeyAdd))
+					{
+						if(prevadd){
+						where++;
+						where%=3;
+						//msleep(200);
+						cursor=0;
+						}
+						prevadd=0;
+					}
+					else
+						prevadd=1;
+					
+					if(kb_IsDown(kb_KeySub))
+					{
+						if(prevminus){
+							cursor=0;
+							where--;
+							if(where<0)
+								where=2;
+							//msleep(200);
+						}
+						prevminus=0;
+					}
+					else
+						prevminus=1;
+					
+					if (kb_IsDown(kb_Key2nd))
+					{
+						if(prev2nd){
+						key2ndforce:
+						//msleep(300);
+						switch(where){
+							case 0:
+								//dbg_printf("num: %d, cursor: %d, cursorblock: %d\n",inventory[cursor],cursor,cursorblock);
+								if (inventory[visible_ids[cursor]]>0&&cursorblock==0){
+									cursorblock=visible_ids[cursor];// 0 is air
+									cursornum=inventory[cursorblock];//sets item holding to one it is on
+								}
+								else if (cursorblock)//!=0
+								{
+									//inventory is not ordered so don't matter where put item
+									if(from_where==2)// if on crafting table
+									{
+										for (int x=0; x<3;++x)
+										{
+											for(int y=0; y<3;++y)
+											{
+												if(crafting_table[x][y][0]==cursorblock)// if item is same as cursorblock
+													crafting_table[x][y][0]=0;//clears item and *moves* it to inventory
+											}
+										}
+									}
+									cursorblock=0;
+								}
+								//dbg_printf("new cursorblock: %d\n",cursorblock);
+								break;
+								
+							case 1:
+								if (cursorblock==0){
+									if(hotbar[cursor]){// !=0
+										cursorblock=hotbar[cursor];
+										hotbar[cursor]=0;
+										cursornum=inventory[cursorblock];
+									}
+								}						
+								else//cursorblock!=0
+								{
+									if(from_where==2)// if on crafting table
+									{
+										for (int x=0; x<3;++x){
+											for(int y=0; y<3;++y){
+												if(crafting_table[x][y][0]==cursorblock)// if item is same as cursorblock
+													crafting_table[x][y][0]=0;//clears item so no duplicates are in hotbar
+											}
+										}
+									}
+									hotbar[cursor]=cursorblock;
+									cursorblock=0;
+									cursornum=0;
+								}
+								break;
+							case 2://crafting table
+								if (cursorblock)//!=0. if stuff in cursor
+								{
+									if(crafting_table[cursor%3][cursor/3][0]==cursorblock){//if put same item on stuff
+										crafting_table[cursor%3][cursor/3][1]+=cursornum;
+										cursorblock=0;
+										cursornum=0;
+									}
+									else if (crafting_table[cursor%3][cursor/3][0])//if stuff in crafting table but not same stuff
+									{
+										int temp=crafting_table[cursor%3][cursor/3][0];
+										crafting_table[cursor%3][cursor/3][0]=cursorblock;//swap block type
+										cursorblock=temp;
+										
+										temp=crafting_table[cursor%3][cursor/3][1];//swap number of blocks
+										crafting_table[cursor%3][cursor/3][1]=cursornum;
+										cursornum=temp;//sorry no fancy xor swap :( this part can be slow though
+									}
+									else{
+										crafting_table[cursor%3][cursor/3][0]=cursorblock;// if nothing there just put stuff in cursor there
+										crafting_table[cursor%3][cursor/3][1]=cursornum;
+										cursorblock=0;
+										cursornum=0;
+									}
+									
+								}
+								else{
+									cursorblock=crafting_table[cursor%3][cursor/3][0];
+									cursornum=crafting_table[cursor%3][cursor/3][1];//inventory[cursorblock];
+									crafting_table[cursor%3][cursor/3][0]=0;
+								}break;
+						}
+						if (cursorblock){//!=0 if something in cursorblock
+							cursorcolor=127;//cyan. light up cursor
+							from_where=where;//where they got block from
+						}
+						else
+						{
+							cursorcolor=231;
+						}
+					}
+					prev2nd=0;
+					}
+					else
+						prev2nd=1;
+					
+				}
+				gfx_FillScreen(bg_color);
+				is_in_crafting_table=false;
+				updatehotbar=2;
+				}
+				
+				if (kb_IsDown(kb_KeyDel)) {
+					last_update=clock();
+					uint8_t* foo;
+					uint8_t* block =cross_hair_pt(foo);
+					
+					if(block!=NULL)//going to do hit logic for combat
+					{
+						if(*block>MOBSTART-1)//is a mob
+						{
+							int indx=*block-(reg_block_num+1);
+							if(block_is_usable[indx]!=NULL)// is usable. Should be though.
+							{
+								dbg_printf("using!");
+								block_is_usable[indx](block);
+								goto endplace2;
+							}
+						}
+					}
+					int bv;
+					int temp=1;
+					int temp2=hotbar[hotbarblock];//wood,stone,gold,iron,diamond,netherite (optional)
+					if (temp2>invenblocknum && temp2<invenblocknum+6){//if picaxe
+						if (temp2<invenblocknum+4)//if wood, stone or gold
+							temp=temp2-invenblocknum+1;//wood is 1, so +1 to make 2
+						else// if iron, diamond, or netherite(optional)
+							temp=temp2-invenblocknum+1;//iron is same as gold
+					}
+					//dbg_printf("player hard: %d, block hard: %d, temp2: %d block: %p\n",temp,hardness[*block],temp2,block);
+					if (block!=NULL&&*block!=BARRIER){// if hit block and block is not barrier
+						mining_timer--;
+						bv=*block;//block value
+						if(prevkeydel)
+							mining_timer=(hardness[bv]*AVERAGEFPS)/temp;//sorry about using division!
+						prevkeydel=0;
+							if(mining_timer<=0){
+								prevkeydel=1;
+								
+								int id=break_block(block);
+								if(temp<hardness[bv])//only add to inventory if have strong enough picaxe
+								{
+									decrease_item(id);
+									
+								}
+								else
+								{
+									*block=0;
+								}
+								
+							}
+					}
+				}
+					
+				else{
+					 mining_timer=0;
+					 prevkeydel=1;
+				}
+				endplace2:
+				
+				if (kb_IsDown(kb_KeyAdd))// increase hotbarblock
+				{
+					last_update=clock();
+					hotbarblock++;
+					hotbarblock&=7;
+					updatehotbar=2;
+				}
+				else if (kb_IsDown(kb_KeySub))
+				{
+					last_update=clock();
+					hotbarblock--;
+					if(hotbarblock<0)
+						hotbarblock=7;
+					updatehotbar=2;
+				}
+				update_count++;
+			}
+			if(clock()-last_place>CLOCKS_PER_SEC/4)
+			{
+				if (kb_IsDown(kb_KeyStat))//place or use or use item
+				{
+					last_place=clock();
+					int id=hotbar[hotbarblock];
+					updatehotbar=2;
+					if (id>invenblocknum)//item
+					{
+						if(use_item[id-invenblocknum-1]!=NULL)//if is usable (like cooked mutton)
+						{
+							use_item[id-invenblocknum-1]();
+							keyup(kb_KeyStat);
+							goto endplace;						
+						}
+					}
+					uint8_t* block;
+					uint8_t* temp=cross_hair_pt(block);
+					
+					if(temp==NULL)
+						goto endplace;
+					
+					if(*temp>reg_block_num&&*temp<MOBSTART)//textured block (often are usable, like crafting table or door)
+					{
+						int indx=*temp-(reg_block_num+1);
+						if(block_is_usable[indx]!=NULL)// is usable
+						{
+							dbg_printf("using!");
+							block_is_usable[indx](temp);
+							goto endplace;
+						}
+					}
+					if (id<invenblocknum+1){// if not item
+
+						
+						if (id){
+							if(id==DOORTOPOPEN)
+							{
+								uint8_t* bottomblock=block-YJ;//down one in y
+								if(*bottomblock)//is not zero (aka can't place door bcs block is there or trying to place door at base)
+								{
+									dbg_printf("base/no space detected!\n");
+									block+=YJ;//up one in y, seeing if was placing at base
+									bottomblock+=YJ;
+									if(*block)//wasn't placing at base								
+										goto endplace;
+									dbg_printf("base detected!\n");
+								}
+								//if here can place door.
+								//will only place bottom because down there will place top.
+								//update_changes(DOORBOTTOMOPEN,bottomblock);
+								*bottomblock=DOORBOTTOMOPEN;
+							}
+							
+							//update_changes(id,block);
+							uint8_t x, y,z;
+							address2coords(block,x,y,z);
+							bool samexz=(int)plx==x&&(int)plz==z;
+							if(!((vis_map((int)plx,(int)ply+1,(int)plz)&&y==(int)ply-1&&samexz)||(samexz&&ply==y)))//if there is not (block above player's head and they are placing block at feet)
+							{
+								*block=id;
+								add_updates_fully(block);
+								inventory[id]--;
+								if(inventory[id]<=0)
+									hotbar[hotbarblock]=0;
+							}
+							
 						}
 						
 					}
-				}
-				//dbg_printf("cursor pos: %d, where: %d\n",cursor,where);
-				if (kb_IsDown(kb_KeyEnter))
-				{
-					int num;
-					int id=recipie_to_id(crafting_table,num);
-					if (id!=-1)
-					{
-						for(int x=0; x<3;x++)
-						{
-							for(int y=0; y<3;y++)
-							{
-								if (crafting_table[x][y][0]!=0){
-									inventory[crafting_table[x][y][0]]--;
-									crafting_table[x][y][0]=0;
-								}
-							}
-						}
-						inventory[id]+=num;
-						crafting_table[1][1][0]=id;
-						crafting_table[1][1][1]=inventory[id];
-						if(cursorblock==id)
-						{
-							cursornum=0;
-							cursorblock=0;
-						}
-					}
-				}
-				
-				if (kb_IsDown(kb_KeyDown))
-				{
-					if(prevdown){
-						if (where==0)
-						{
-							//int pcursor=cursor;
-							cursor+=6;
-							/*
-							if(pcursor<DOORBOTTOMCLOSED+1&&cursor>DOORTOPOPEN)
-								cursor+=3;
-							*/
-						}
-						if(where==2)
-							cursor+=3;
-						//msleep(200);
-					}
-					prevdown=0;
-				}					
-				else
-					prevdown=1;
-				
-
-				if (kb_IsDown(kb_KeyUp))
-				{
-					if(prevup){
-						if (where==0)
-						{
-							//int pcursor=cursor;
-							cursor-=6;
-							/*
-							if(pcursor>DOORBOTTOMCLOSED&&cursor<DOORTOPOPEN+1)
-								cursor-=3;
-							*/
-						}
-						if(where==2)
-							cursor-=3;
-						//msleep(200);
-					}
-					prevup=0;
-				}					
-				else 
-					prevup=1;
-				
-				if (kb_IsDown(kb_KeyAlpha))//split if on crafting table
-				{
-					if(where==2&&prevalpha){
-						if(cursorcolor==135)//already is in alpha
-						{
-						goto key2ndforce;
-						}
-						cursorblock=crafting_table[cursor%3][cursor/3][0];
-						cursornum=crafting_table[cursor%3][cursor/3][1]/2;
-						crafting_table[cursor%3][cursor/3][1]-=cursornum;//splits in half
-						cursorcolor=135;
-						from_where=2;
-					}
-					prevalpha=0;
-				}
-				else
-					prevalpha=1;
-				if (kb_IsDown(kb_KeyRight))// increase hotbarblock
-				{
-					if(prevright){
-					cursor++;
-					//msleep(200);
-					}
-					prevright=0;
-					if(where==0)
-					{
-						/*
-						if(cursor>DOORTOPOPEN&&cursor<DOORBOTTOMCLOSED+1)
-							cursor=DOORBOTTOMCLOSED+1;
-						*/
-					}
-				}
-				else
-					prevright=1;
-				
-				if (kb_IsDown(kb_KeyLeft))
-				{
-
-					if(prevleft){
-					cursor--;
-					//msleep(200);
-					}
-					prevleft=0;
-					if(where==0)
-					{
-						/*
-						if(cursor<DOORBOTTOMCLOSED+1&&cursor>DOORTOPOPEN)
-							cursor=DOORTOPOPEN;
-						*/
-					}
-				}					
-				else
-					prevleft=1;
-				
-				if(kb_IsDown(kb_KeyAdd))
-				{
-					if(prevadd){
-					where++;
-					where%=3;
-					//msleep(200);
-					cursor=0;
-					}
-					prevadd=0;
-				}
-				else
-					prevadd=1;
-				
-				if(kb_IsDown(kb_KeySub))
-				{
-					if(prevminus){
-						cursor=0;
-						where--;
-						if(where<0)
-							where=2;
-						//msleep(200);
-					}
-					prevminus=0;
-				}
-				else
-					prevminus=1;
-				
-				if (kb_IsDown(kb_Key2nd))
-				{
-					if(prev2nd){
-					key2ndforce:
-					//msleep(300);
-					switch(where){
-						case 0:
-							//dbg_printf("num: %d, cursor: %d, cursorblock: %d\n",inventory[cursor],cursor,cursorblock);
-							if (inventory[visible_ids[cursor]]>0&&cursorblock==0){
-								cursorblock=visible_ids[cursor];// 0 is air
-								cursornum=inventory[cursorblock];//sets item holding to one it is on
-							}
-							else if (cursorblock)//!=0
-							{
-								//inventory is not ordered so don't matter where put item
-								if(from_where==2)// if on crafting table
-								{
-									for (int x=0; x<3;++x)
-									{
-										for(int y=0; y<3;++y)
-										{
-											if(crafting_table[x][y][0]==cursorblock)// if item is same as cursorblock
-												crafting_table[x][y][0]=0;//clears item and *moves* it to inventory
-										}
-									}
-								}
-								cursorblock=0;
-							}
-							//dbg_printf("new cursorblock: %d\n",cursorblock);
-							break;
-							
-						case 1:
-							if (cursorblock==0){
-								if(hotbar[cursor]){// !=0
-									cursorblock=hotbar[cursor];
-									hotbar[cursor]=0;
-									cursornum=inventory[cursorblock];
-								}
-							}						
-							else//cursorblock!=0
-							{
-								if(from_where==2)// if on crafting table
-								{
-									for (int x=0; x<3;++x){
-										for(int y=0; y<3;++y){
-											if(crafting_table[x][y][0]==cursorblock)// if item is same as cursorblock
-												crafting_table[x][y][0]=0;//clears item so no duplicates are in hotbar
-										}
-									}
-								}
-								hotbar[cursor]=cursorblock;
-								cursorblock=0;
-								cursornum=0;
-							}
-							break;
-						case 2://crafting table
-							if (cursorblock)//!=0. if stuff in cursor
-							{
-								if(crafting_table[cursor%3][cursor/3][0]==cursorblock){//if put same item on stuff
-									crafting_table[cursor%3][cursor/3][1]+=cursornum;
-									cursorblock=0;
-									cursornum=0;
-								}
-								else if (crafting_table[cursor%3][cursor/3][0])//if stuff in crafting table but not same stuff
-								{
-									int temp=crafting_table[cursor%3][cursor/3][0];
-									crafting_table[cursor%3][cursor/3][0]=cursorblock;//swap block type
-									cursorblock=temp;
-									
-									temp=crafting_table[cursor%3][cursor/3][1];//swap number of blocks
-									crafting_table[cursor%3][cursor/3][1]=cursornum;
-									cursornum=temp;//sorry no fancy xor swap :( this part can be slow though
-								}
-								else{
-									crafting_table[cursor%3][cursor/3][0]=cursorblock;// if nothing there just put stuff in cursor there
-									crafting_table[cursor%3][cursor/3][1]=cursornum;
-									cursorblock=0;
-									cursornum=0;
-								}
-								
-							}
-							else{
-								cursorblock=crafting_table[cursor%3][cursor/3][0];
-								cursornum=crafting_table[cursor%3][cursor/3][1];//inventory[cursorblock];
-								crafting_table[cursor%3][cursor/3][0]=0;
-							}break;
-					}
-					if (cursorblock){//!=0 if something in cursorblock
-						cursorcolor=127;//cyan. light up cursor
-						from_where=where;//where they got block from
-					}
-					else
-					{
-						cursorcolor=231;
-					}
-				}
-				prev2nd=0;
-				}
-				else
-					prev2nd=1;
-				
-			}
-			gfx_FillScreen(BG_COLOR);
-			is_in_crafting_table=false;
-			updatehotbar=2;
-			}
-			
-			if (kb_IsDown(kb_KeyDel)) {
-				
-				uint8_t* foo;
-				uint8_t* block =cross_hair_pt(foo);
-				
-				if(block!=NULL)//going to do hit logic for combat
-				{
-					if(*block>MOBSTART-1)//is a mob
-					{
-						int indx=*block-(reg_block_num+1);
-						if(block_is_usable[indx]!=NULL)// is usable. Should be though.
-						{
-							dbg_printf("using!");
-							block_is_usable[indx](block);
-							goto endplace2;
-						}
-					}
-				}
-				int bv;
-				int temp=1;
-				int temp2=hotbar[hotbarblock];//wood,stone,gold,iron,diamond,netherite (optional)
-				if (temp2>invenblocknum && temp2<invenblocknum+6){//if picaxe
-					if (temp2<invenblocknum+4)//if wood, stone or gold
-						temp=temp2-invenblocknum+1;//wood is 1, so +1 to make 2
-					else// if iron, diamond, or netherite(optional)
-						temp=temp2-invenblocknum+1;//iron is same as gold
-				}
-				//dbg_printf("player hard: %d, block hard: %d, temp2: %d block: %p\n",temp,hardness[*block],temp2,block);
-				if (block!=NULL&&*block!=5){// if hit block and block is not barrier
-					mining_timer--;
-					bv=*block;//block value
-					if(prevkeydel)
-						mining_timer=(hardness[bv]*AVERAGEFPS)/temp;//sorry about using division!
-					prevkeydel=0;
-						if(mining_timer<=0){
-							prevkeydel=1;
-							
-							if(temp>=hardness[bv])
-							{//only add to inventory if have strong enough picaxe
-								
-								break_block(block);
-							}
-							
-						}
-				}
-			}
-				
-			else{
-				 mining_timer=0;
-				 prevkeydel=1;
-			}
-			endplace2:
-			if (kb_IsDown(kb_KeyStat))//place or use or use item
-			{
-				int id=hotbar[hotbarblock];
-				updatehotbar=2;
-				if (id>invenblocknum)//item
-				{
-					if(use_item[id-invenblocknum-1]!=NULL)//if is usable (like cooked mutton)
-					{
-						use_item[id-invenblocknum-1]();
-						keyup(kb_KeyStat);
-						goto endplace;						
-					}
-				}
-				uint8_t* block;
-				uint8_t* temp=cross_hair_pt(block);
-				
-				if(temp==NULL)
-					goto endplace;
-				
-				if(*temp>reg_block_num&&*temp<MOBSTART)//textured block (often are usable, like crafting table or door)
-				{
-					int indx=*temp-(reg_block_num+1);
-					if(block_is_usable[indx]!=NULL)// is usable
-					{
-						dbg_printf("using!");
-						block_is_usable[indx](temp);
-						goto endplace;
-					}
-				}
-				if (id<invenblocknum+1){// if not item
-
-					
-					if (id){
-						if(id==DOORTOPOPEN)
-						{
-							uint8_t* bottomblock=block-YJ;//down one in y
-							if(*bottomblock)//is not zero (aka can't place door bcs block is there or trying to place door at base)
-							{
-								dbg_printf("base/no space detected!\n");
-								block+=YJ;//up one in y, seeing if was placing at base
-								bottomblock+=YJ;
-								if(*block)//wasn't placing at base								
-									goto endplace;
-								dbg_printf("base detected!\n");
-							}
-							//if here can place door.
-							//will only place bottom because down there will place top.
-							//update_changes(DOORBOTTOMOPEN,bottomblock);
-							*bottomblock=DOORBOTTOMOPEN;
-						}
-						//update_changes(id,block);
-						*block=id;
-						add_updates_fully(block);
-						inventory[id]--;
-						if(inventory[id]<=0)
-							hotbar[hotbarblock]=0;
-					}
 					
 				}
-				
-			}
-			else if (kb_IsDown(kb_KeyAdd))// increase hotbarblock
-			{
-				hotbarblock++;
-				hotbarblock&=7;
-				updatehotbar=2;
-			}
-			else if (kb_IsDown(kb_KeySub))
-			{
-				hotbarblock--;
-				if(hotbarblock<0)
-					hotbarblock=7;
-				updatehotbar=2;
 			}
 			endplace:
 			if (kb_IsDown(kb_KeyClear)) {
@@ -6144,10 +6058,10 @@ int main(void){
 			if(kb_IsDown(kb_KeyApps))
 			{
 				disp_controls();
-				gfx_FillScreen(BG_COLOR);
+				gfx_FillScreen(bg_color);
 				updatehotbar=2;
 			}
-			std::clock_t t1 = std::clock();
+			
 			
 			raycast_screen();
 			
@@ -6156,6 +6070,7 @@ int main(void){
 			gfx_SetTextXY(0,100);
 			gfx_PrintString("FPS: ");
 			uint8_t fps=(int)((float)32768/(t2-t1)*10);
+			t1 = std::clock();
 			gfx_PrintInt(fps/10,1);
 			gfx_PrintString(".");
 			gfx_PrintInt(fps%10,1);
@@ -6180,15 +6095,32 @@ int main(void){
 					draw_item(temp,i,205,1);
 					++c;
 				}
-				for(int x=0; x<playerhp*15;x+=15)
+				int x=0;
+				int val=(playerhp>>1)*15;
+				for(; x<val;x+=15)
 				{
 					gfx_Sprite_NoClip(heart,x,185);
 				}
+				int oldx=x;
+				for(; x<150;x+=15)
+				{
+					gfx_Sprite_NoClip(emptyheart,x,185);
+				}
+				if (playerhp & 1)
+				{
+					gfx_Sprite_NoClip(halfheart,oldx,185);
+				}
+
 				int a=(10-(playerhunger>>1))*15;
 				//dbg_printf("playerhunger: %d", playerhunger);
 				for(int x=169+a; x<305;x+=15)
 				{
 					gfx_Sprite_NoClip(hunger,x,185);
+				}
+				
+				for(int x=169; x<169+a;x+=15)
+				{
+					gfx_Sprite_NoClip(emptyhunger,x,185);
 				}
 			}
 			gfx_SetColor(0);
@@ -6221,7 +6153,7 @@ int main(void){
 			
 			if(playerhp<1)
 			{
-				alive=false;
+				alive=false;				
 			}
 		}
 	}
@@ -6238,7 +6170,18 @@ int main(void){
 	}
 	save_world(wname);
 	dbg_printf("pbflag wname: %s, origwname: %s, bflag: %d\n",wname,origwname,bflag);
-	if(bflag)//if wname!=origwname
+	if(realm==1)
+	{
+		realm=0;
+		tchunkx=chunkx; tchunkz=chunkz;
+		chunkx=32; chunkz=32;
+		flint tempply=ply;
+		loadnewchunk();
+		ply=tempply;
+		
+		save_world(origwname,1);
+	}
+	else if(bflag)//wname!=origwname
 	{
 		dbg_printf("bflag!!!\n");
 		tchunkx=chunkx;//tchunkx and z are temp chunkx for saving in the save_world function
