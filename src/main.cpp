@@ -4394,7 +4394,7 @@ inline bool walk_thru_block(int blockid)
 {
 	if(blockid==0)
 		return true;
-	if(blockid>MOBSTART)
+	if(blockid>MOBSTART-1)
 		return true;
 	if(blockid>reg_block_num&&blockid<FLOORVOXELSEND+1)//if is a floor voxel
 		return true;
@@ -4507,8 +4507,13 @@ void gc_after(void)
 {
 	gfx_Begin();
 	gfx_SetDefaultPalette(gfx_8bpp);
+	gfx_palette[1] = gfx_RGBTo1555(40, 40, 40);
 	gfx_SetDrawBuffer();
+	gfx_SetTextFGColor(0);
+	gfx_SetTextBGColor(255);
+	gfx_SetTextTransparentColor(26);
 	MNCFTIMG_init();
+	updatehotbar=2;
 }
 
 int break_block(uint8_t* block)
@@ -4694,6 +4699,7 @@ int main(void){
 		os_ClrHome();
 		printf("not enough ram!!! free up some stuff");
 		os_GetKey();
+		return 6767;
 	}
 	ti_SetGCBehavior(gc_before, gc_after);
 	MNCFTIMG_init();
@@ -4970,7 +4976,7 @@ int main(void){
 				length-=actualindex;
 				length-=22;
 				dbg_printf("header[1]: %d, length: %d, actualindex: %d, appvarname: %s", header[1], length, actualindex, appvarname);
-				memcpy(&header[actualindex],&header[actualindex+22], length);
+				memmove(&header[actualindex],&header[actualindex+22], length);
 				header[1]-=1;
 				set_archive("MNCFTD",false);
 				ti_var_t slotw = ti_Open("MNCFTD", "w");
@@ -5350,7 +5356,7 @@ int main(void){
 							break;
 					}
 					uint8_t feetblock=vis_map(x,y-1,z);//remeber: barrier at bottom so prob no wrap around
-					uint8_t headblock=vis_map(x,y+1,z);//remeber: barrier at bottom so prob no wrap around
+					uint8_t headblock=vis_map(x,y,z);//remeber: barrier at bottom so prob no wrap around
 					if(headblock||feetblock==FIRE)
 					{
 						playerhp--;
@@ -6049,6 +6055,11 @@ int main(void){
 					{
 						playerhunger--;
 						updatehotbar=2;
+						if(playerhunger<0)
+						{
+							playerhunger=0;
+						}
+
 					}
 				}
 				else
