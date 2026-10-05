@@ -5200,16 +5200,6 @@ int main(void){
 		updatehotbar=2;
 		//dbg_printf("magmablock: %d fire: %d\n",MAGMABLOCK,FIRE);
 		int lspeed=0;//look speed multiplier
-		inventory[OBSIDIAN]=67;
-		hotbar[1]=OBSIDIAN;
-		hotbar[2]=FLINTANDSTEEL;
-		hotbar[0]=DIAMONDPIC;
-		inventory[FURNACE]=10;
-		inventory[BEDTOP]=10;
-		hotbar[3]=BEDTOP;
-		hotbar[4]=FURNACE;
-		uint8_t y;
-		spawn_nether_portal(10,y,10);
 		if(realm==1)
 			change_bg(NETHERBGCOLOR);
 		while (alive){
