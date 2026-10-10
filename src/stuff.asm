@@ -635,8 +635,8 @@ _Sprite_16x16to32x32:
 ; the next call's read.
 ; ============================================================
 
-RBP1   equ 19   ; reg_block_num+1  (reg_block_num=16 in main.cpp)
-RBP1X2 equ 38   ; 2*(reg_block_num+1)
+RBP1   equ 23   ; reg_block_num+1  (reg_block_num=16 in main.cpp)
+RBP1X2 equ 46   ; 2*(reg_block_num+1)
 
 macro ASM_DDA_LOOP SX, SY, SZ, ENDX, ENDY, ENDZ, LX, LXZ, LYZ, LDONE
 ;assuming tmaxx in hl, tmaxy in bc, tmaxz in de, curr_block in IX. A=0 held for whole routine.

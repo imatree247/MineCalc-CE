@@ -73,6 +73,7 @@ uint8_t bg_color=125;
 #define COALNUM 70
 #define GRAVELNUM 7
 #define OBSIDIANNUM 30
+#define NETHERGOLDORENUM 50
 #define TUNNELNUM 5
 #define TUNNELWOBBLEF 10
 #define TUNNELWOBBLEU 5
@@ -95,11 +96,15 @@ uint8_t bg_color=125;
 #define OBSIDIAN 15
 #define WATERBLOCK 16
 #define WATERFALL 17
+#define IRONBLOCK 18
+#define GOLDBLOCK 19
+#define DIAMONDBLOCK 20
+#define REDSTONEBLOCK 21
 
-#define block_num 64
-#define reg_block_num 18
+#define block_num 69
+#define reg_block_num 22
 #define item_num 26
-#define RECIPIENUM 19
+#define RECIPIENUM 27
 
 #define invenblocknum (TEXTURENUM+reg_block_num+FLOORNUM)
 
@@ -168,7 +173,8 @@ uint8_t* floorcolors=floorcolorsconst-(FLOORVOXELS+1);
 #define SMOKE (FLOORVOXELSEND+21)
 #define GRAVEL (FLOORVOXELSEND+22)
 #define NETHERPORTAL (FLOORVOXELSEND+23)
-#define TEXTURENUM 23
+#define NETHERGOLDORE (FLOORVOXELSEND+24)
+#define TEXTURENUM 24
 /*
 #define GRASS PLANKS
 #define STONE CRAFTTABLE
@@ -229,6 +235,8 @@ void add_update(uint8_t* block,uint8_t optionaldata=0);
 void use_tnt(uint8_t* block);
 void add_updates_fully(uint8_t* block);
 int break_block(uint8_t* block);
+void break_portal(uint8_t*block);
+__attribute__((optnone)) bool iswater(uint8_t value);//umm... without that tag the compiler crashes
 void address2coords(uint8_t* block, uint8_t&x,uint8_t&y,uint8_t&z )
 {
 	int nblock = block - world;
@@ -260,9 +268,15 @@ void explode(uint8_t* block,uint8_t r)//this makes an explosion
 				if ((unsigned)nz >= WZ) continue;
 				if (dx*dx + dy*dy + dz*dz <= r*r)
 				{
-					auto temp=vis_map(nx,ny,nz);
-					if(temp==OBSIDIAN||temp==BARRIER)
+					auto bl=&vis_map(nx,ny,nz);
+					auto temp=*bl;
+					if(temp==OBSIDIAN||temp==BARRIER||iswater(temp))
 						continue;//these blocks are blast proof. So, can't break and they block explosions. 
+					if(temp==NETHERPORTAL)
+					{
+						break_portal(bl);
+						continue;
+					}
 					//in THOERY should never be able to explode barrier, but just to be safe I added that...
 					
 					if(temp!=TNT)
@@ -270,19 +284,19 @@ void explode(uint8_t* block,uint8_t r)//this makes an explosion
 						if(!(temp==LITTNT||temp>MOBSTART-1))//these blocks aren't blast proof but also shouldn't be turned into smoke
 						{
 							if(temp!=0&&temp!=SMOKE)
-								break_block(&vis_map(nx,ny,nz));
+								break_block(bl);
 							if(randInt(0,1))
 							{
-								vis_map(nx,ny,nz) = SMOKE;
+								*bl = SMOKE;
 								
 							}
-							add_updates_fully(&vis_map(nx,ny,nz));
+							add_updates_fully(bl);
 						}
 					}
 					else
 					{
-						vis_map(nx,ny,nz)=LITTNT;
-						add_update(&vis_map(nx,ny,nz));
+						*bl=LITTNT;
+						add_update(bl);
 					}
 					
 				}
@@ -343,9 +357,17 @@ void wateronespread(uint8_t* block, uint8_t value)
 	}
 	
 }
-bool iswater(uint8_t value)
+__attribute__((optnone)) bool iswater(uint8_t value)//umm... without that tag the compiler crashes
 {
-	return value==WATERFALL||value==WATERBLOCK||value==WATERSLAB||value==WATERFLOOR;
+    switch (value) {
+        case WATERFALL:
+        case WATERBLOCK:
+        case WATERSLAB:
+        case WATERFLOOR:
+            return true;
+        default:
+            return false;
+    }
 }
 void waterplusspread(uint8_t* block, uint8_t value)
 {
@@ -431,8 +453,10 @@ void update_lit_tnt(uint8_t* block,uint8_t ttl)
 	if(*(block-YJ)==0)//yes I did copy/paste this from make block fall and just change like 2 things. No I do not feel bad. 
 	{
 		*block=0;
+		add_updates_fully(block);
 		block-=YJ;
 		*block=LITTNT;
+		add_updates_fully(block);
 	}
 	if(ttl==0)//uninitialized
 	{
@@ -470,7 +494,10 @@ void update_fire(uint8_t* block,uint8_t ttl)
 		}
 	}
 	else
+	{
 		*block=AIR;
+		add_updates_fully(block);
+	}
 }
 
 void update_smoke(uint8_t* block,uint8_t ttl)
@@ -527,6 +554,7 @@ void call_update();
 static bool canupdatecleanup=true;
 void add_update(uint8_t* block,uint8_t optionaldata)
 {
+	canupdatecleanup=true;
 	if(block>=world&&block<world+32768)
 	{
 		if(bstacktop>2046)
@@ -543,7 +571,6 @@ void add_update(uint8_t* block,uint8_t optionaldata)
 					bstack[bstacktop].block=block-world;
 					bstack[bstacktop].data=optionaldata;
 					bstacktop++;
-					canupdatecleanup=true;
 					return;
 				}
 			}
@@ -925,7 +952,7 @@ uint8_t * cross_hair_pt(uint8_t*& blockbefore,bool countwaterblock=0,bool counta
 	int signdz=fast_copysign_pos(1,dz.data);
 	flint tmaxx,tmaxy,tmaxz;
 	tmaxx.data = deltax.data >> 1;
-	tmaxy.data = (dy.data > 0) ? 0 : deltay.data;
+	tmaxy.data = deltay.data >> 1;
 	tmaxz.data = deltaz.data >> 1;
 
 	uint8_t *curr_block = world+((ix) << XWS) + ((iy) << YWS) + (iz);
@@ -1034,19 +1061,19 @@ inline int ray_trace_point(const int pixelx,const int pixely, uint8_t* w, flint 
 //                                              NONE,grass,stone,wood,leaf,border,obsidian,iron,gold,diamond,sand,wool,snowgrass,snow,netherack,water,water
 static const uint8_t hardness[block_num]=
 {
-	/*id 0-15, reg blocks*/  0,1,2,1,0,255,1,1,1,1,1,1,1,1,2,5,255,255,
+	/*id 0-15, reg blocks*/  0,1,2,1,0,255,1,1,1,1,1,1,1,1,2,5,255,255,3,4,4,4,
 	/*id 16, gap*/           0,
 	/*id 17-19, floor*/      0,0,0,255,255,
-	/*id 20-36, textures*/   1,2,1,1,1,1,1,1,2,2,0,2,1, /*crafttable..cactus*/  3,4,4,4,2,1,255,2,1,0, /*iron,gold,diamond,redstone,coal,tnt,lit_tnt smoke,gravel,netherportal*/
+	/*id 20-36, textures*/   1,2,1,1,1,1,1,1,1,2,0,2,1, /*crafttable..cactus*/  3,4,4,4,2,1,255,0,1,0,2, /*iron,gold,diamond,redstone,coal,tnt,lit_tnt smoke,gravel,netherportal,nthrgldore*/
 	/*id 37-46, mobs*/       255,255,255,255,255,255,255,255,255,255
 };
 static uint8_t colors[(reg_block_num + 1) << 2] = {
     /* Block ID:            0    1    2    3    4    5    6      7      8       9        10   11   12    13   14   15 */
-    /* Block Name:        none grss stne wood leaf barr unlmp litlmp unbtn litbtn sand wool sgrs snow nthr obsd,   wterwrt */
+    /* Block Name:        none grss stne wood leaf barr unlmp litlmp unbtn litbtn sand wool sgrs snow nthr obsd,   wterwrt irn gld dmnd rdstn*/
 
-    /* Channel 0 (x)drkst */  0, 130, 106,  65,   6, bg_color,   0,   0,   0,   0, 205, 140, 130, 215,  64,   0,   25,25,0,
-    /* Channel 1 (y)light */  0,   5, 172, 238, 103, bg_color,   0,   0,   0,   0, 239, 247, 255, 255, 128,  74,   27,27,0,
-    /* Channel 2 (z)drker */ 0, 131, 139,  97,   7, bg_color,   0,   0,   0,   0, 238, 181, 131, 247,  96,  1,   25,27,0
+    /* Channel 0 (x)drkst */  0, 130, 106,  65,   6, bg_color,   0,   0,   0,   0, 205, 140, 130, 215,  64,   0,   25,25,139,  229,30,160,0,
+    /* Channel 1 (y)light */  0,   5, 172, 238, 103, bg_color,   0,   0,   0,   0, 239, 247, 255, 255, 128,  74,   27,27,222,231,159,224,0,
+    /* Channel 2 (z)drker */ 0, 131, 139,  97,   7, bg_color,   0,   0,   0,   0, 238, 181, 131, 247,  96,  1,   25,27,  213,230,31,192,0
 };
 void change_bg(uint8_t color)
 {
@@ -1061,8 +1088,8 @@ that is because the renderer flips all the textures in the y as a byproduct. it 
 // this v v v  is an array storing what sides of texture blocks go with what textures ^ ^ ^
 static const uint8_t* texturedata[]={
 	clear,clear,clear,clear,  clear,clear,clear,clear,  clear,clear,clear,clear,clear,clear,clear,clear, waterslabside,clear,waterslabside,clear, /*id 16-18: snowcarpet, redstonedustunlit, redstonedustlit - side/bottom transparent, top handled by floorcolors[]*/
-//                  crafting table                                             furnace                                             planks                                                               bed top                         glass                               doortopopen                               doorbottomeopen             doortopclosed                         doorbottomclosed                   magmablock                                        fire                             sandstone                                                  cactus                       iron                              gold                                            diamond                            redstone                                                           coal                        tnt             lit tnt(will toggle texture in main loop to flash)                   explosion                                 gravel                                    netherportal texture (the purple stuff)                     skeletontopx                           skeletontopz                    skeletonbottom                                  sheepfacex                    sheepfacez                      sheepbackx                      sheepbackz                                           zombietopx                                                zombietopz                                            zombielegs                  
-	planksdarker,craftingtabletop,plankslighter,planksnorm,   cobblestone,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop ,ironorex,ironorey,ironorez,ironorey, goldorex,goldorey,goldorez,goldorey,    diamondorex,diamondorey,diamondorez,diamondorey, redstoneorex,redstoneorey,redstoneorez,redstoneorey,   coalorex,coalorey,coalorez,coalorey,   tntxz,tnty,tntxz,tnty,  tntxz,tnty,tntxz,tnty,                        explosionxyz,explosionxyz,explosionxyz,explosionxyz, graveltxt,graveltxt,graveltxt,graveltxt,   netherportaltxt,netherportaltxt,netherportaltxt,netherportaltxt,
+//                  crafting table                                             furnace                                             planks                                                               bed top                         glass                               doortopopen                               doorbottomeopen             doortopclosed                         doorbottomclosed                   magmablock                                        fire                             sandstone                                                  cactus                       iron                              gold                                            diamond                            redstone                                                           coal                        tnt             lit tnt(will toggle texture in main loop to flash)                   explosion                                 gravel                                    netherportal texture (the purple stuff)                    nether gold ore                                               skeletontopx                           skeletontopz                    skeletonbottom                                  sheepfacex                    sheepfacez                      sheepbackx                      sheepbackz                                           zombietopx                                                zombietopz                                            zombielegs                  
+	planksdarker,craftingtabletop,plankslighter,planksnorm,   furnacefront,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop ,ironorex,ironorey,ironorez,ironorey, goldorex,goldorey,goldorez,goldorey,    diamondorex,diamondorey,diamondorez,diamondorey, redstoneorex,redstoneorey,redstoneorez,redstoneorey,   coalorex,coalorey,coalorez,coalorey,   tntxz,tnty,tntxz,tnty,  tntxz,tnty,tntxz,tnty,                        explosionxyz,explosionxyz,explosionxyz,explosionxyz, graveltxt,graveltxt,graveltxt,graveltxt,   netherportaltxt,netherportaltxt,netherportaltxt,netherportaltxt,nethergoldorex,nethergoldorey,nethergoldorez,nethergoldorey,
 //mobs
     skeletope,grey,skeletopf,clear,  skeletopf,grey,skeletope,clear,   skelebottom,skelebottom,skelebottom,skelebottom,   sheepface,grey,sheepside,grey,   sheepside,grey,sheepface,grey,     sheepback,grey,sheepside,grey,  sheepside,grey,sheepback,grey,     zombieface,zombieheadtop,zombiehead,zombieheadtop,     zombiehead,zombieheadtop,zombieface,zombieheadtop,      zombielegs,zombieheadtop,zombielegs,zombieheadtop  ,          pigface,pigtop,pigfrontside,pigtop,   pigfrontside,pigtop,pigface,pigtop,      pigback,pigtop,pigbackside,pigtop,    pigbackside,pigtop,pigback,pigtop,      piglinface,pigtop,piglintopside,pigtop,    piglintopside,pigtop,piglinface,pigtop,       piglinlegs,pigtop,piglinlegs,pigtop};
 static flint cache [640]={};
@@ -1264,7 +1291,7 @@ void furnace_stuff(uint8_t*)//uint8_t* block)//need block because of syntax for 
 			{
 				fuel--;
 			}
-			else
+			else if(cookedb!=0)
 			{
 				fuelid=0;
 				fuelb=0;
@@ -1868,7 +1895,7 @@ static void (*block_is_usable[])(uint8_t*) ={
 	use_craftingtable, furnace_stuff, NULL, use_bed, NULL,             // 19-23: crafttable,furnace,planks,bedtop,glass
 	use_doorto, use_doorbo, use_doortc, use_doorbc,                    // 24-27: doors
 	NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,NULL,NULL/*calls use_tnt by other methods*/,NULL,NULL,NULL,NULL, // 28-31: magmablock,fire,sandstone,cactus + ores. tnt, lit tnt, smoke,gravel,netherportal
-	NULL, NULL, NULL,                                                  // 32-34: skeletopx,skeletopz,skelebottom (unimplemented)
+	NULL, NULL, NULL,NULL,                                                  // 32-34: skeletopx,skeletopz,skelebottom (unimplemented)
 	 hurtmob_at, hurtmob_at, hurtmob_at, hurtmob_at,                        // 35-38: sheepfacex,sheepfacez,sheepbackx,sheepbackz
 	 hurtmob_at, hurtmob_at, hurtmob_at,                                // 39-41: zombietopx,zombietopz,zombielegs
 	 hurtmob_at, hurtmob_at, hurtmob_at, hurtmob_at,
@@ -1988,7 +2015,7 @@ int* ddatmaxz = getddatmaxz();
 	deltaz = inv_tablel[dz.data];\
 	\
 	tmaxx.data = deltax.data >> 1;\
-	tmaxy.data = (tdy.data > 0) ? 0 : deltay.data;\
+	tmaxy.data = deltay.data >> 1;\
 	tmaxz.data = deltaz.data >> 1;\
 	\
 	uint8_t quadrant = (dx.data>0) | tdy_bit | ((dz.data > 0)<<2);\
@@ -2072,7 +2099,7 @@ int* ddatmaxz = getddatmaxz();
 			{\
 				tmaxx-=deltax;\
 				flint tzf=mlt32(dz,tmaxx)+((int)plz)+half;\
-				flint tyf=mlt32(tdy,tmaxx)+((int)ply);\
+				flint tyf=mlt32(tdy,tmaxx)+((int)ply)+half;\
 				int tz= (tzf.data&511)>>6;\
 				int ty = (tyf.data >> 3) & 0x38;\
 				tcolor=ltexturedata[id<<2][(tz)+ty];\
@@ -2102,7 +2129,7 @@ int* ddatmaxz = getddatmaxz();
 			{\
 				tmaxz-=deltaz;\
 				flint txf=(mlt32(dx,tmaxz))+((int)plx)+half;\
-				flint tyf=(mlt32(tdy,tmaxz))+((int)ply);\
+				flint tyf=(mlt32(tdy,tmaxz))+((int)ply)+half;\
 				int tx=((txf.data)&511)>>6;\
 				int ty = (tyf.data >> 3) & 0x38;\
 				tcolor=ltexturedata[(id<<2)+2][(tx)+ty];\
@@ -2443,7 +2470,12 @@ void spawn_random_cluster(uint8_t block,uint8_t x,uint8_t y,uint8_t z,uint8_t mi
 		for(int yo=0;yo<ylen;++yo)
 		{
 			for(int zo=0;zo<zlen;++zo)
+			{
+				if(x+xlen>WX) xlen=WX-x;
+				if(y+ylen>WY) ylen=WY-y;
+				if(z+zlen>WZ) zlen=WZ-z;
 				vis_map(x+xo,y+yo,z+zo)=block;
+			}
 		}
 	}
 }
@@ -2576,10 +2608,7 @@ void generate_world_underground()
 			//now time to wobble the tunnel!
 			ay+=randInt(-TUNNELWOBBLEF,TUNNELWOBBLEF);
 			az+=randInt(-TUNNELWOBBLEU,TUNNELWOBBLEU);//how wiggly/wobbley the tunnels are
-			if(ay<0)
-				ay=64-ay;
-			if(ay>63)
-				ay=63;
+			ay&=63;
 			az=az&63;
 			if(az<0)
 				az=0;
@@ -2795,10 +2824,41 @@ void generate_nether()
 		}
 	}
 	generate_terrain(NETHERRACK,NETHERRACK,6,21,10);//lower section
+	
 	spawn_fire();
 	generate_terrain(NETHERRACK,NETHERRACK,20,25,2);
 	spawn_fire();
-	outline_world_with_barrier();
+	for(int j=0; j<2;++j)
+	{
+		for(int i=0; i<NETHERGOLDORENUM;++i)
+		{
+			uint8_t x=randInt(1,WX-2);
+			uint8_t y;
+			if(j==0) y=randInt(6,21);
+			else y=randInt(20,25);
+			uint8_t z=randInt(1,WZ-2);
+			if(vis_map(x,y,z))
+			{
+				vis_map(x,y,z)=NETHERGOLDORE;
+
+				if(vis_map(x+1,y,z))
+					vis_map(x+1,y,z)=NETHERGOLDORE;
+				if(vis_map(x-1,y,z))
+					vis_map(x-1,y,z)=NETHERGOLDORE;
+
+				if(vis_map(x,y+1,z))
+					vis_map(x,y+1,z)=NETHERGOLDORE;
+				if(vis_map(x,y-1,z))
+					vis_map(x,y-1,z)=NETHERGOLDORE;
+
+				if(vis_map(x,y,z+1))
+					vis_map(x,y,z+1)=NETHERGOLDORE;
+				if(vis_map(x,y,z-1))
+					vis_map(x,y,z-1)=NETHERGOLDORE;
+			}
+		}
+		outline_world_with_barrier();
+	}
 }
 	
 /*
@@ -3152,7 +3212,7 @@ void use_waterbucket()
 		if(*block==0)//don't need to include other ids bcs include water is off by default
 		{
 			*block=WATERBLOCK;
-			add_updates_fully(temp);
+			add_updates_fully(block);
 			decrease_item(WATERBUCKET);
 			inventory[BUCKET]++;
 			add2hotbar(BUCKET);
@@ -3161,9 +3221,9 @@ void use_waterbucket()
 }
 gfx_sprite_t ** item_imgs;//            ={woodpic,stonepic,goldpic,ironpic,diamondpic,/*netheritepic*/NULL,stick,woodsword,stonesword,goldsword,ironsword,diamondsword,ironingot,goldingot,rawmutton,    cookedmutton,    rottenflesh, diamond, coal, flint and steel}, flint,bucket, waterbcket;              rawpork,    cooked pork
 static void (*use_item[])(       ){      NULL,    NULL,  NULL,   NULL,     NULL,            NULL,        NULL, NULL,       NULL,      NULL,   NULL,       NULL,       NULL,       NULL, use_rawmutton,use_cookedmutton,use_rottenflesh, NULL ,NULL, light_fire,        NULL,   use_bucket,  use_waterbucket, use_rawpork,use_cookedpork};
-//                                  crafting table   furnace    planks   bed top glass   doortop   doorbottom magmablock  fire cacti, sandstone    irndmrdgldcl  tnt, tntlit, smoke gravel nthrprtl
-const static uint8_t recog_text_side[]={1,            2,         2,        1,    0,       2        ,0,0,0,         1,     0,    0,           0,     0,0,0,0, 0,   0,    0,      0,   0 ,    0};
-//const static uint8_t unmirror[]={3,2,1,0,7,6,5,4};//yeah... i have a mirroring problem with textures.
+//                                  crafting table   furnace    planks   bed top glass   doortop   doorbottom magmablock  fire cacti, sandstone    irndmrdgldcl  tnt, tntlit, smoke gravel nthrprtl nthrgld
+const static uint8_t recog_text_side[]={1,            2,         2,        1,    0,       2        ,0,0,0,         1,     0,    0,           0,     0,0,0,0, 0,   0,    0,      0,   0 ,    0,    0};
+//const static uint8_t unmirror[]={3,2,1,0,7,6,5,4};
 // this is based off of an array that goes {0,1,2,3,4,5,6,7,8} and shows what the mirroring does (used in unmirroring for draw_item
 //because i mirrored all my textures so they don't look mirrored in the game.
 
@@ -3371,10 +3431,57 @@ int recipies[RECIPIENUM][3][3]={
 		{IRONINGOT, 0, IRONINGOT},
 		{0, IRONINGOT, 0},
 		{0, 0, 0}
-	}
+	},
+	{
+		//ironblock
+		{IRONINGOT, IRONINGOT, IRONINGOT},
+		{IRONINGOT, IRONINGOT, IRONINGOT},
+		{IRONINGOT, IRONINGOT, IRONINGOT},
+	},
+	{
+		//goldblock
+		{GOLDINGOT, GOLDINGOT, GOLDINGOT},
+		{GOLDINGOT, GOLDINGOT, GOLDINGOT},
+		{GOLDINGOT, GOLDINGOT, GOLDINGOT},
+	},
+	{
+		//diamond block
+		{DIAMONDITEM, DIAMONDITEM, DIAMONDITEM},
+		{DIAMONDITEM, DIAMONDITEM, DIAMONDITEM},
+		{DIAMONDITEM, DIAMONDITEM, DIAMONDITEM},
+	},
+	{//redstone block
+		{REDSTONEDUSTUNLIT, REDSTONEDUSTUNLIT, REDSTONEDUSTUNLIT},
+		{REDSTONEDUSTUNLIT, REDSTONEDUSTUNLIT, REDSTONEDUSTUNLIT},
+		{REDSTONEDUSTUNLIT, REDSTONEDUSTUNLIT, REDSTONEDUSTUNLIT},
+	},
+	{
+		//ironingot
+		{0, 0,0},
+		{0, IRONBLOCK, 0},
+		{0, 0, 0}
+	},
+	{
+		//goldingot
+		{0, 0,0},
+		{0, GOLDBLOCK, 0},
+		{0, 0, 0}
+	},
+	{
+		//diamonditem
+		{0, 0,0},
+		{0, DIAMONDBLOCK, 0},
+		{0, 0, 0}
+	},
+	{
+		//redstoneitem
+		{0, 0,0},
+		{0, REDSTONEBLOCK, 0},
+		{0, 0, 0}
+	},
 };// index of the recipie to id
-int recipie_to_id_array[RECIPIENUM]=   {PLANKS,STICK,WOODPIC,STONEPIC,IRONPIC,DIAMONDPIC,WOODSWORD,STONESWORD,IRONSWORD,DIAMONDSWORD, CRAFTTABLE, DOORTOPOPEN,FURNACE,BEDTOP,GOLDPIC, GOLDSWORD,FLINTANDSTEEL, TNT,BUCKET};
-int num_items_from_recipie[RECIPIENUM]={4,       4      ,1,      1,      1,       1,          1,        1,        1,       1,               1,          3,       1,      1,    1,        1,            1,       1, 1};
+int recipie_to_id_array[RECIPIENUM]=   {PLANKS,STICK,WOODPIC,STONEPIC,IRONPIC,DIAMONDPIC,WOODSWORD,STONESWORD,IRONSWORD,DIAMONDSWORD, CRAFTTABLE, DOORTOPOPEN,FURNACE,BEDTOP,GOLDPIC, GOLDSWORD,FLINTANDSTEEL, TNT,BUCKET, IRONBLOCK, GOLDBLOCK, DIAMONDBLOCK, REDSTONEBLOCK,IRONINGOT, GOLDINGOT, DIAMONDITEM, REDSTONEDUSTUNLIT};
+int num_items_from_recipie[RECIPIENUM]={4,       4      ,1,      1,      1,       1,          1,        1,        1,       1,               1,          3,       1,      1,    1,        1,            1,       1,  1,        1,         1,           1,           1,           9,        9,           9,         9,};
 // this ^ ^ ^ is how much of the item you get when you craft it.
 inline int recipie_to_id(int craftingtable[3][3][2], int &num)
 {
@@ -3844,6 +3951,7 @@ void save_world(char* wname,uint8_t nrealm=0)
 	but if I need more ram, it will spill over the first buffer and enter the visible screen. The worst case scenario
 	of memory is under 153600 (3000 for hmap)+(32768 for world) + (58000 for all the changes) + (58000 again, but this is for the back up of file)
 	is under 153600 (it is 150400 around).*/
+	update_cleanup();
 	switch(realm)
 	{
 		case 0:
@@ -3890,7 +3998,8 @@ void save_world(char* wname,uint8_t nrealm=0)
 	+ 8
 	+ sizeof(int)*3
 	+ sizeof(uint32_t)
-	+ sizeof(int)*3;
+	+ sizeof(int)*3
+	+ 15;
 	
 	bool test=ti_Resize(totalsize,worldslot);
 	if(!test)
@@ -4451,6 +4560,10 @@ void try_walk(flint dirx, flint dirz)
 	{
 		playerhunger--;
 		updatehotbar=2;//once per buffer. (I am double buffering). updates hunger on screen
+		if(playerhunger<0)
+		{
+			playerhunger=0;
+		}
 	}
 	int nx=(int)(dirx+plx);
 	int nz=(int)(dirz+plz);
@@ -4533,14 +4646,17 @@ int break_block(uint8_t* block)
 		case REDSTONE:
 			iv=REDSTONEDUSTUNLIT;
 			break;
-		case GLASS:
-			iv=0;//do nothing. i have if statement to do nothing if iv==0
-			break;
 		case COAL:
 			iv=COALITEM;
 			break;
 		case FIRE:
-			iv=0;
+		case SMOKE:
+		case GLASS:
+		case WATERBLOCK:
+		case WATERFALL:
+		case WATERSLAB:
+		case WATERFLOOR:
+			iv=0;//do nothing. i have if statement to do nothing if iv==0
 			break;
 		case GRAVEL:
 			if(randInt(0,4)==0)//I know, it should be 1 out of 8 but that is really annoying in real minecraft so I changed it
@@ -4552,6 +4668,9 @@ int break_block(uint8_t* block)
 			//fallthough is purposeful here
 		case OBSIDIAN://break_portal will fail if isn't portal so is ok
 			break_portal(block);
+			break;
+		case NETHERGOLDORE:
+			iv=GOLDINGOT;
 			break;
 		
 	}
@@ -4582,7 +4701,6 @@ int break_block(uint8_t* block)
 const char* keybinds[]=
 {
 "Welcome to Keybinds! (press any key to leave)",
-"",
 "Controls for main gameplay:",
 "    clear - save and exit (works anywhere)",
 "    2nd   - move forward",
@@ -4595,7 +4713,7 @@ const char* keybinds[]=
 "    minus - move selected block in hotbar -1",
 "    math  - toggle fast look/turn speed",
 "    arrows - changing perspective/look around",
-"    apps  - open up this menu",
+"    apps  - open this menu",
 "Controls for crafting menu:",
 "    arrows - moving cursor around",
 "    NOTE: THERE'S A SCROLL IN THIS MENU!",
@@ -4605,6 +4723,7 @@ const char* keybinds[]=
 "    alpha  - split block in crafting table",
 "    enter  - craft",
 "    XTON   - exit the inventory screen.",
+"    mode   - view all crafting recipies",
 "Controls for the furnace menu:",
 "    arrows - moving cursor around",
 "    NOTE: THERE'S A SCROLL IN THIS MENU!",
@@ -4645,6 +4764,56 @@ void disp_controls()
 		   kb_Scan();
 	wait_key_release();
 }
+void view_recipies()
+{
+	const char* choices[]={"EXIT RECIPIES","PLANKS", "STICK", "WOODPIC", "STONEPIC", "IRONPIC", "DIAMONDPIC", "WOODSWORD", "STONESWORD", 
+		"IRONSWORD", "DIAMONDSWORD", "CRAFTTABLE", "DOORTOPOPEN", "FURNACE", "BEDTOP", "GOLDPIC", "GOLDSWORD", "FLINTANDSTEEL", 
+		"TNT", "BUCKET", "IRONBLOCK","GOLDBLOCK", "DIAMONDBLOCK", "REDSTONEBLOCK", "IRONINGOT", "GOLDINGOT", "DIAMONDITEM", 
+		"REDSTONEDUSTUNLIT"};
+	const char** c=choices;
+	gfx_SetDrawBuffer();
+	while(true)
+	{
+		int choice=menu(c,RECIPIENUM+1);
+		kb_Scan();
+		wait_key_release();
+		
+		if(choice<=0)
+		{
+			if(choice==-1)
+			{
+				gfx_Begin();
+				gfx_SetDefaultPalette(gfx_8bpp);
+				gfx_palette[1] = gfx_RGBTo1555(40, 40, 40);
+				superstop=true;
+			}
+			gfx_SetDrawBuffer();
+			gfx_FillScreen(75);
+			return;
+		}
+		gfx_FillScreen(75);
+		gfx_SetColor(175);
+		gfx_FillRectangle_NoClip(100,20,120,120);
+		for(uint8_t x=0; x<3;++x)
+		{
+			for(uint8_t y=0; y<3;++y)
+			{
+				int index=recipies[choice-1][y][x];
+				if(index>0)
+				{
+					draw_item(index, 105+x*36, 25+y*36,0);
+				}
+			}
+		}
+		gfx_PrintStringXY("Press any key to continue", 0, 0);
+		gfx_SwapDraw();
+		do
+		{
+			kb_Scan();
+		} while (!(kb_Data[1] || kb_Data[2] || kb_Data[3] || 
+				kb_Data[4] || kb_Data[5] || kb_Data[6] || kb_Data[7]));
+	}
+}	
 static bool hide_in_inventory[invenblocknum+item_num]={};
 
 static int visible_ids[invenblocknum+item_num];
@@ -4813,7 +4982,7 @@ int main(void){
 			os_GetKey();
 			goto beginning;
 		}
-		char buffer [17];
+		char buffer [17]={};
 		gfx_End();
 		while (kb_IsDown(kb_KeyEnter)){
 			kb_Scan();
@@ -4930,7 +5099,7 @@ int main(void){
 			//gfx_Begin();
 			char **opt = (char**)malloc(header[1]* sizeof(char*));
 			for (int i = 0; i < header[1]; i++) 
-				opt[i] = new char[17];
+				opt[i] = new char[17]();
 			int c=0;
 			for(int i=2; i<header[1]*22+2;i+=22)//skipping start bits, reading world
 			{
@@ -4993,13 +5162,6 @@ int main(void){
 	else if(choice==4)//view controls
 	{
 		disp_controls();
-		gfx_End();
-		goto beginning;
-		
-	}
-	else if(choice==4)//view controls
-	{
-		
 		gfx_End();
 		goto beginning;
 		
@@ -5170,8 +5332,9 @@ int main(void){
 	gfx_palette[1] = gfx_RGBTo1555(40, 40, 40);
 	clock_t last_update = clock();
 	clock_t last_place = clock();
-	std::clock_t t1=1;
-	uint8_t update_count=0;
+	clock_t last_world_tick=clock();
+	//std::clock_t t1=1;
+	//uint8_t update_count=0;
 	while (1)
 	{		
 		
@@ -5202,9 +5365,23 @@ int main(void){
 		int lspeed=0;//look speed multiplier
 		if(realm==1)
 			change_bg(NETHERBGCOLOR);
+		uint8_t* mining_block=nullptr;
+		/*
+		inventory[MAGMABLOCK]=1;
+		inventory[DIAMONDPIC]=1;
+		inventory[TNT]=100;
+		inventory[FLINTANDSTEEL]=1;
+		hotbar[0]=TNT;
+		hotbar[1]=FLINTANDSTEEL;
+		hotbar[2]=MAGMABLOCK;
+		hotbar[3]=DIAMONDPIC;
+		
+		uint8_t y;
+		spawn_nether_portal(15,y,15);
+		*/
 		while (alive){
 			//dbg_printf("gfx_vbuffer=%p\n", (void*)gfx_vbuffer);
-			call_update();
+			
 			frame+=1;
 			if(realmcooldown>0)
 				realmcooldown--;
@@ -5215,9 +5392,11 @@ int main(void){
 			{
 				if(playerhunger>17&&playerhp<20)
 				{
-					playerhp+=1;
-					playerhunger-=randInt(1,2);
+					playerhp+=2;
+					playerhunger-=randInt(0,2);
 					updatehotbar=2;
+					if(playerhp>20)
+						playerhp=20;
 				}
 				
 				uint32_t temps=clock()-start_time;
@@ -5279,8 +5458,7 @@ int main(void){
 			}
 			if (kb_IsDown(kb_KeyRight)) {
 				rotxz-=2<<lspeed;
-				if (rotxz<0)
-					rotxz=63;
+				rotxz&=63;
 				
 				
 			}
@@ -5295,6 +5473,9 @@ int main(void){
 				if(rotyz<15||rotyz>48) {
 					  
 				rotyz+=1<<lspeed;
+
+				if(rotyz>15&&rotyz<49) rotyz=15;
+
 				if(rotyz>63)
 					rotyz-=64;
 				}
@@ -5329,10 +5510,13 @@ int main(void){
 					dirz=-1;
 			}
 			//dbg_printf("X: %d, Y: %d, Z: %d\n",(int)plx,(int)ply,(int)plz);
-			if(clock()-last_update> CLOCKS_PER_SEC / 7)//happens 7 times a second
+			auto ct=clock();
+			if(ct-last_world_tick> CLOCKS_PER_SEC / 4)
 			{
-				if(update_count&1)//happens around 3.5 times a second
-				{
+				update_all_mobs();
+				call_update();
+				//player damage stuff
+				{					
 					uint8_t x,y,z;
 					x=(int)plx;
 					y=(int)ply;
@@ -5347,12 +5531,17 @@ int main(void){
 					}
 					uint8_t feetblock=vis_map(x,y-1,z);//remeber: barrier at bottom so prob no wrap around
 					uint8_t headblock=vis_map(x,y,z);//remeber: barrier at bottom so prob no wrap around
-					if(headblock||feetblock==FIRE)
+					if(headblock==FIRE||feetblock==FIRE)
 					{
 						playerhp--;
 						updatehotbar=2;
 					}
 				}
+				last_world_tick=ct;
+			}
+			if(ct-last_update> CLOCKS_PER_SEC / 7)//happens 7 times a second
+			{
+				
 				auto ltexturedata = (texturedata - ((reg_block_num+1) << 2));
 				constexpr int tempid=LITTNT<<2;
 				if((frame&3)==0)
@@ -5367,7 +5556,7 @@ int main(void){
 					ltexturedata[tempid+1]=grey;
 					ltexturedata[tempid+2]=grey;
 				}
-				update_all_mobs();
+				
 				if(realm==0)
 				{
 					manage_nocturnal_vmobs(vmob_pool, VMOB_POOL_SIZE,  wtime, 3);
@@ -5384,8 +5573,8 @@ int main(void){
 					last_update=clock();
 				}
 				
-				 if(ply>WY-2)
-					 ply=WY-2;
+				 if(ply>WY-1)
+					 ply=WY-1;
 				 if(ply<0)
 					 ply=0;
 				 if ((kb_Data[3] & kb_GraphVar)||is_in_crafting_table) {//xton
@@ -5420,7 +5609,10 @@ int main(void){
 						gfx_SetDrawBuffer();
 
 						kb_Scan();
-
+						if(kb_IsDown(kb_KeyMode))
+						{
+							view_recipies();
+						}
 						int c=0;
 						if (where==1){
 							
@@ -5621,7 +5813,7 @@ int main(void){
 								for(int y=0; y<3;y++)
 								{
 									if (crafting_table[x][y][0]!=0){
-										inventory[crafting_table[x][y][0]]--;
+										decrease_item(crafting_table[x][y][0]);
 										crafting_table[x][y][0]=0;
 									}
 								}
@@ -5869,6 +6061,7 @@ int main(void){
 				}
 				
 				if (kb_IsDown(kb_KeyDel)) {
+					dbg_printf("ply %d (int %d)\n", ply.data, (int)ply);
 					last_update=clock();
 					uint8_t* foo;
 					uint8_t* block =cross_hair_pt(foo);
@@ -5877,6 +6070,7 @@ int main(void){
 					{
 						if(*block>MOBSTART-1)//is a mob
 						{
+							/*
 							int indx=*block-(reg_block_num+1);
 							if(block_is_usable[indx]!=NULL)// is usable. Should be though.
 							{
@@ -5884,27 +6078,46 @@ int main(void){
 								block_is_usable[indx](block);
 								goto endplace2;
 							}
+							*/
+							hurtmob_at(block);
+							goto endplace2;
 						}
 					}
 					int bv;
 					int temp=1;
 					int temp2=hotbar[hotbarblock];//wood,stone,gold,iron,diamond,netherite (optional)
 					if (temp2>invenblocknum && temp2<invenblocknum+6){//if picaxe
-						if (temp2<invenblocknum+4)//if wood, stone or gold
-							temp=temp2-invenblocknum+1;//wood is 1, so +1 to make 2
-						else// if iron, diamond, or netherite(optional)
-							temp=temp2-invenblocknum+1;//iron is same as gold
+						switch(temp2)
+						{
+							case WOODPIC:
+							case GOLDPIC:
+								temp=2;
+								break;
+							case STONEPIC:
+								temp=3;
+								break;
+							case IRONPIC:
+								temp=4;
+								break;
+							case DIAMONDPIC:
+								temp=5;
+								break;
+						}
 					}
 					//dbg_printf("player hard: %d, block hard: %d, temp2: %d block: %p\n",temp,hardness[*block],temp2,block);
-					if (block!=NULL&&*block!=BARRIER){// if hit block and block is not barrier
+					if (block!=NULL&&*block!=BARRIER&&hardness[*block]<255){// if hit block and block is not barrier
+						
 						mining_timer--;
+						if(block!=mining_block)
+							prevkeydel=true;
 						bv=*block;//block value
+						mining_block=block;
 						if(prevkeydel)
 							mining_timer=(hardness[bv]*AVERAGEFPS)/temp;//sorry about using division!
 						prevkeydel=0;
 							if(mining_timer<=0){
 								prevkeydel=1;
-								
+								mining_block=nullptr;
 								int id=break_block(block);
 								if(temp<hardness[bv])//only add to inventory if have strong enough picaxe
 								{
@@ -5941,7 +6154,7 @@ int main(void){
 						hotbarblock=7;
 					updatehotbar=2;
 				}
-				update_count++;
+				//update_count++;
 			}
 			if(clock()-last_place>CLOCKS_PER_SEC/4)
 			{
@@ -6063,11 +6276,12 @@ int main(void){
 				updatehotbar=2;
 			}
 			
-			
+			dbg_printf("raycast: ply %d (int %d)\n", ply.data, (int)ply);
 			raycast_screen();
 			
-			std::clock_t t2 = std::clock();
+			//std::clock_t t2 = std::clock();
 			
+			/*
 			gfx_SetTextXY(0,100);
 			gfx_PrintString("FPS: ");
 			uint8_t fps=(int)((float)32768/(t2-t1)*10);
@@ -6075,8 +6289,8 @@ int main(void){
 			gfx_PrintInt(fps/10,1);
 			gfx_PrintString(".");
 			gfx_PrintInt(fps%10,1);
-			dbg_printf("time: %d\n",(t2-t1));
-			
+			//dbg_printf("time: %d\n",(t2-t1));
+			*/
 			gfx_SetColor(75);
 			gfx_HorizLine_NoClip(0, 184, 320);//For some reason, there is a line here so I "patched" it ;)
 			if(updatehotbar>0)

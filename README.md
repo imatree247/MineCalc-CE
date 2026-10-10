@@ -2,21 +2,23 @@
 ![MineCalc demo (these are the videos shown in the github)](trailers%20and%20stuff/tnt.opt.png) ![MineCalc demo](trailers%20and%20stuff/Recording2026-09-04194633-ezgif_wigx75G_gV_AlIgV0q.com-optimize.opt.png)
 As the name sugests, this is a game similar to Minecraft but instead designed to run on the TI 84 Plus CE graphing calculator. It is coded in C++ using the C/C++ TI 84 Plus CE Toolchain (CEdev) as well as a little bit of assembly. It was tested using the CEmu calculator emulator. This code works for the TI 84 Plus CE Python Edition as well.
 
-So, I bet you are wondering, how close to Minecraft is this game? This game, unlike pretty much every other Minecraft game for the calculator, is fully 3D from the first person perspective. It has a render distance of 16 blocks (taxicab/Manhattan distance, so looks like a diamond), and runs at an average of 7-8 fps, although the fps can vary depending on how much open space you're looking at. Sadly, in order to prioritize speed, it runs at 1/5th resolution (but it is Minecraft, do pixels really matter? :) ).
+So, I bet you are wondering, how close to Minecraft is this game? This game, unlike pretty much every other Minecraft game for the calculator, is fully 3D from the first person perspective. It has a render distance of 16 blocks (taxicab/Manhattan distance, so looks like a diamond), and runs at an average of 5-6 fps, although the fps can vary depending on how much open space you're looking at. Sadly, in order to prioritize speed, it runs at 1/5th resolution (but it is Minecraft, do pixels really matter? :) ).
 
-The game is chunk-based instead of one fixed map — each chunk is 32x32x32 (31x31x31 usable once you account for the barrier blocks), and you can walk between up to 62x62 chunks, with each visited chunk saved to its own appvar. There's a hotbar, crafting system, furnace/smelting, inventory, and a daylight cycle. There are about 28 block types (including glass, doors, beds, sandstone, cactus) and 18 items, including tools/weapons (wood, stone, gold, iron, and diamond rarity pickaxes and swords). Also, I added water.
+The game is chunk-based instead of one fixed map — each chunk is 32x32x32 (31x31x31 usable once you account for the barrier blocks), and you can walk between up to 62x62 chunks, with each visited chunk saved to its own appvar. There's a hotbar, crafting system, furnace/smelting, inventory, and a daylight cycle. There are about 50 block types (including glass, doors, beds, sandstone, cactus, and even recently water!) and 26 items, including tools/weapons (wood, stone, gold, iron, and diamond rarity pickaxes and swords), buckets, and flint and steel. Also, I added water.
 
-There are now two mobs: sheep and zombies. Sheep wander peacefully and, when killed, drop two wool (used for crafting beds) and one raw mutton (smeltable into cooked mutton). Zombies spawn at night, chase the player, and deal damage on contact; killing one drops rotten flesh. Weapon damage against mobs scales with whatever's in your selected hotbar slot (better swords/tools do more damage). Beds let you skip the night and set your respawn point.
+There are now four mobs in this game so far: sheep, pigs, zombies and piglins (in the nether). Sheep and pigs wander around and are passive; sheep drop mutton and wool when killed while pigs drop raw porkchops when killed. Zombies and piglins are hostile and they will both try to kill you. Zombies drop rotten flesh when killed, and piglins drop a gold ingot and raw porkchop when killed. 
 
-The game is approaching beta but is still a work in progress and I highly recommend playing with a high amount of ram. I also recommend not doing anything too insane (aka breaking every block in a chunk to see what will happen. What will happen, you might ask? 90% it works. Some times, it might refuse to save the chunk if you don't have enough ram free though). There's also currently no automatic archiving of newly-visited chunks until you exit cleanly, so if the game crashes mid-session, any chunk you entered since your last clean save/exit won't be preserved. If you are unable to run it (because it keeps quitting) I suggest archiving all of your stuff and clearing your RAM.
+Speaking of the nether, I added the nether. You need to build a nether portal (like in minecraft), then use flint and steel to light it. Then, you get to go into the nether! Just like Minecraft, I would not reccomend trying to us a bed while in there though :). In the nether you can find: nether gold ore, piglins, netherrack, and magmablocks. 
+
+The game is still a work in progress and I highly recommend playing with a high amount of ram. I also recommend not doing anything too insane (aka breaking every block in a chunk to see what will happen. What will happen, you might ask? 90% it works. Some times, it might refuse to save the chunk if you don't have enough ram free though). There's also currently no automatic archiving of newly-visited chunks until you exit cleanly, so if the game crashes mid-session, any chunk you entered since your last clean save/exit won't be preserved. If you are unable to run it (because it keeps quitting) I suggest archiving all of your stuff and clearing your RAM.
 
 One more thing to mention: in the crafting screen, you have to align all of your crafting recipies to the top left corner of the crafting table because I am NOT going to make like 5 recipies for each item. One other thing to mention: if you play the game for over 17 hours straight, I am pretty sure one of my clock variables will overflow and either the daylight cycle will look really weird or the game will crash. I have no idea. I have not tested it and don't plan to. I don't know why you would play it for that long but please don't.
 
- If you find a bug that is not in the list of bugs please email me at sneakybiscuit24633@gmail.com. If you fix or know how to fix a bug, you can also email me. The only reasons I won't fix a bug is if it is too hard to fix or makes the game slower.
+If you find a bug that is not in the list of bugs please email me at sneakybiscuit24633@gmail.com. If you fix or know how to fix a bug, you can also email me. The only reasons I won't fix a bug is if it is too hard to fix or makes the game slower.
 
-To run the game, first download TI Connect CE or visit a website like ticalc.link. If your OS is later than 5.5, you need the arTIfiCE jailbreak* (if your OS is between 5.5 and 5.8.4 — if it's 5.8.5, arTIfiCE won't work and you are screwed, well, as of 8/10/26 when this readme was last updated. You should probably check to see if you are still screwed). This will let you run assembly programs. Third, download the MINECALC.8xp file and the MNCFTIMG.8xv assets file from the bin folder and send both to the calculator.
+To run the game, first download TI Connect CE or visit a website like ticalc.link. If your OS is later than 5.5, you need the arTIfiCE jailbreak*. This will let you run assembly programs. Third, download the MINECALC.8xp file and the MNCFTIMG.8xv assets file from the bin folder and send both to the calculator. You NEED the asset file.
 
-With TNT, one other thing: I have not added any gun powder yet so craft TNT with coal in the place of gunpowder instead. Another thing with TNT, if you leave the chunk when it is exploding, don't leave the chunk when it is exploding because it won't explode and you might become very sad.
+With TNT, one other thing: I have not added any gunpowder yet so craft TNT with coal in the place of gunpowder instead. Another thing with TNT, if you leave the chunk when it is exploding, don't leave the chunk when it is exploding because it won't explode and you might become very sad.
 
 *arTIfiCE is not a jailbreak. It is an exploit. Everyone calls it a jailbreak though so I am.
 
@@ -65,6 +67,8 @@ enter --- craft
 
 XTθN  --- exit the inventory screen.
 
+mode --- view crafting recipies.
+
 
 # Controls for the furnace menu:
 
@@ -84,7 +88,7 @@ One last thing: I did use generative AI (free account on Claude) to help with th
 
 Another last thing: you are free to use my code for something as long as you provide a link or something AND don't just copy my entire game(aka make a Minecraft clone). I tried to add some comments in my code to make it more readable. 
 
-Special thanks to: my little brother for making me the diamond item image for the game. Also, special thanks to all the people who made coding c++ for the ti 84 plus ce possible at all. 
+Special thanks to: Sean for being an amazing playtester (and for making some of the textures) and my little brother for making me the diamond item image for the game. Also, special thanks to all the people who made coding C++ for the ti 84 plus ce possible at all. 
 
 Ok, you can stop reading now. The rest is just stuff I thought was cool (from a perspective of a calculator nerd) I did in my code.
 
