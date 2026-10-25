@@ -95,3 +95,6 @@ Ok, you can stop reading now. The rest is just stuff I thought was cool (from a 
 
 
 In this most recent update, I managed to make it over 2x faster! How you might ask? I did some fancy guessing! So... This game uses raycasting. If you don't know what that is it basically means for every pixel (or chunk of pixels in my case because I am running at a lower resolution) you send out a line and record what block you hit. Then you draw the color of that block. That is kind of slow. So what I did, is I raycasted every even column Then for every odd column, I checked if the pixel to the right was equal to the pixel to its left. If so, it just skipped drawing and drew that same color. And then I did the same thing for the rows. Pretty neat right? Yeah, I bet a solid 85% of the people reading this thought "yeah no this was a waste of my time." Anyways... That means I often only draw 1/3 of the pixels I usually draw! The only downside is textures far away sometimes look weird, but that was to be expected and an okay side effect. 
+
+Oh yeah, and i put this here so you won't sue me:
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
