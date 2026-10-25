@@ -86,7 +86,7 @@ XTθN --- exit menu. NOTE: when you exit, it takes all your items out of the fur
 
 One last thing: I did use generative AI (free account on Claude) to help with the programming. I did most of the main logic though. It mostly just helped debug, write functions I considered boring, and EXPECIALLY with the giant mess of copy/pasted macros in my assembly code. In order to make my renderer as fast as possible, I coded one iteration of main loop in assembly, asked Claude to turn it into a macro, then asked it to make 8 new pieces of code with that macro copied/pasted 15 times inside. It looks really really really ugly. But it did give a 1.5x speed up! (For non-computery people, a macro is a piece of code the computer will copy/paste for you so you don't have to. Very handy!)
 
-Another last thing: you are free to use my code for something as long as you provide a link or something AND don't just copy my entire game(aka make a Minecraft clone). I tried to add some comments in my code to make it more readable. 
+Another last thing: you are free to use my code for something as long as you provide a link or something AND don't just copy my entire game (aka make a Minecraft clone). I will decide this. I tried to add some comments in my code to make it more readable. 
 
 Special thanks to: Sean for being an amazing playtester (and for making some of the textures) and my little brother for making me the diamond item image for the game. Also, special thanks to all the people who made coding C++ for the ti 84 plus ce possible at all. 
 
