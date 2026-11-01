@@ -2517,7 +2517,7 @@ void generate_world_underground()
 							goto next;
 						}
 						vis_map(ox,oy,oz)=0;//255;
-						if(!randInt(0,40*(1<<MOVESHIFT)))
+						if(!randInt(0,40))
 						{
 							vis_map(ox,oy,oz)=WATERBLOCK;
 							add_update(&vis_map(ox,oy,oz));
@@ -4480,7 +4480,7 @@ inline bool walk_thru_block(int blockid)
 }
 void try_walk(flint dirx, flint dirz)
 {
-	if(randInt(0,100)==0)
+	if(randInt(0,200)==0)
 	{
 		playerhunger--;
 		updatehotbar=2;//once per buffer. (I am double buffering). updates hunger on screen
@@ -5202,7 +5202,7 @@ int main(void){
 	flint dirz=1; flint dirx=0;
 	int flag=0;
 	flint grav=0; //player's GRAVity
-	flint grav_amount=.3f;
+	flint grav_amount=.35f;
 	gfx_SetDrawBuffer();
 	flint fln1pt5=-1;// flint negative 1 point 5
 	//block on hotbar selected
@@ -6184,7 +6184,7 @@ int main(void){
 				if (kb_IsDown(kb_KeyMode))
 				{
 					grav=fln1pt5;
-					if(randInt(0,40)==0)
+					if(randInt(0,100)==0)
 					{
 						playerhunger--;
 						updatehotbar=2;
