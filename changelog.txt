@@ -1,0 +1,19 @@
+In this log every time I say COMPATIBILITY CHANGE it is not backwards compatible with worlds made by previous versions
+
+
+0.0.0:	first release!
+
+0.0.1:	updated screen flashing bug! COMPATIBILITY CHANGE
+
+0.0.2:	a lot faster
+
+0.0.3:	a lot faster, but turned into resolution so actually looks a lot better but is a little slower.
+
+0.0.4: 	added: textures for ores, tnt, fire, (both don't deal damage yet) non-functioning redstone, flint, flint and steel, 	gravel, coal, and more! COMPATIBILITY CHANGE
+
+0.0.5:	This is a moderately big release! 1.5x speed up, and added water. COMPATIBILITY CHANGE
+
+0.0.6:	THIS IS A HUGE RELEASE! Added the nether, pigs, piglins, AND fixed texture rendering! Also fixed a bunch of bugs. 	COMPATIBILITY CHANGE
+
+0.0.7: 	Renderer update! around 2X SPEED UP! (went from ~5 fps to ~10 fps), and added fractional player movement! It plays 	much smoother now!
+
