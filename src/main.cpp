@@ -65,6 +65,8 @@ uint8_t bg_color=125;
 
 
 #define INTERACTD 6
+#define FRACPOS 1      // 1 = fractional player position, 0 = old block-center rendering
+#define MOVESHIFT 1    // walk step = 1/(1<<MOVESHIFT) block
 //#define TREENUM 10
 #define IRONNUM 75
 #define DIAMONDNUM 20
@@ -140,7 +142,10 @@ uint8_t bg_color=125;
 #define SNOWCARPET (FLOORVOXELS+1)                // 16
 #define REDSTONEDUSTUNLIT (FLOORVOXELS+2)          // 17
 #define REDSTONEDUSTLIT (FLOORVOXELS+3)            // 18
-												// don't trust these indeicies i change blocks all the time so they are probsbly not correct
+												// don't trust these indeicies ^ ^ ^ i change blocks all the time so they are probsbly not correct
+												//that goes for every other index. I literally asked ai to change one thing and they
+												//decided to annotate a bunch of my code.
+												//same goes for stuff.asm
 #define WATERFLOOR (FLOORVOXELS+4) 
 
 #define WATERSLAB (FLOORVOXELS+5)
@@ -166,6 +171,7 @@ uint8_t* floorcolors=floorcolorsconst-(FLOORVOXELS+1);
 #define IRON (FLOORVOXELSEND+14) 
 #define GOLD (FLOORVOXELSEND+15) 
 #define DIAMOND (FLOORVOXELSEND+16) 
+//#define GRASS IRON
 #define REDSTONE (FLOORVOXELSEND+17) 
 #define COAL (FLOORVOXELSEND+18) 
 #define TNT (FLOORVOXELSEND+19)
@@ -852,7 +858,10 @@ flint small=.001f;
 const flint step_divide=1;
 
 static flint inv_tabler[1500];
-static flint* inv_table;
+extern "C"
+{
+	flint* inv_table;
+}
 
 /*
 volatile int foo;// I forget what these do. Maybe temporary variables?
@@ -865,6 +874,28 @@ flint ply=WY-4;
 flint plz=1;
 int rotxz=0;
 int rotyz=0;
+extern "C" { extern uint8_t fr_kxp, fr_kxn, fr_kzp, fr_kzn;
+             extern int fr_ofxp, fr_ofxn, fr_ofyp, fr_ofyn, fr_ofzp, fr_ofzn; }
+int frx=8, fry=8, frz=8;   // 1..15 (1/16 blocks)
+#define FRB 4                      // fraction bits: 4 = 1/16 ... 8 = 1/256 (max 8)
+#define FRN (1<<FRB)
+#define KSEL(f,d) (((d)>0)?FRN-(f):(f))
+#define KMUL(delta,k) ((int)(((long)(delta)*(k))>>FRB))   // 32-bit multiply, no overflow
+static inline int frac4(flint v){ int f=(v.data>>(9-FRB))&(FRN-1); return f<1?1:f; }
+void update_frac()
+{
+#if FRACPOS
+	frx=frac4(plx); frz=frac4(plz);
+#else
+	frx=frz=FRN/2;
+#endif
+	fry=frac4(ply);                    // eye height stays mid-block (y fix from before)
+	fr_kxp=(FRN-frx)<<(8-FRB); fr_kxn=frx<<(8-FRB);   // asm wants k*(256/FRN), one byte
+	fr_kzp=(FRN-frz)<<(8-FRB); fr_kzn=frz<<(8-FRB);
+	fr_ofxp=frx<<(10-FRB); fr_ofxn=(FRN-frx)<<(10-FRB);   // texture origin, 1024 per block
+	fr_ofyp=fry<<(10-FRB); fr_ofyn=(FRN-fry)<<(10-FRB);
+	fr_ofzp=frz<<(10-FRB); fr_ofzn=(FRN-frz)<<(10-FRB);
+}
 #define fast_abs(x) std::abs((int)x)
 /*
 inline int fast_abs(int x)//suuuper speeedddyyyy abs
@@ -920,6 +951,7 @@ uint8_t * cross_hair_pt(uint8_t*& blockbefore,bool countwaterblock=0,bool counta
 {
 	/** basically raycast point function below but gets the block (and previous block) where the crosshair is.
 	block where the crosshair is pointing is used for using and breaking, block before is used to for placing blocks**/
+	update_frac();
 	int ix=plx;
 	int iy=ply;
 	int iz=plz;
@@ -951,9 +983,9 @@ uint8_t * cross_hair_pt(uint8_t*& blockbefore,bool countwaterblock=0,bool counta
 	int signdy=fast_copysign_pos(YJ,dy.data);
 	int signdz=fast_copysign_pos(1,dz.data);
 	flint tmaxx,tmaxy,tmaxz;
-	tmaxx.data = deltax.data >> 1;
-	tmaxy.data = deltay.data >> 1;
-	tmaxz.data = deltaz.data >> 1;
+	tmaxx.data=KMUL(deltax.data,KSEL(frx,dx.data));
+	tmaxy.data=KMUL(deltay.data,KSEL(fry,dy.data));
+	tmaxz.data=KMUL(deltaz.data,KSEL(frz,dz.data));
 
 	uint8_t *curr_block = world+((ix) << XWS) + ((iy) << YWS) + (iz);
 	for (int i=0; i<INTERACTD; ++i)
@@ -1067,7 +1099,7 @@ static const uint8_t hardness[block_num]=
 	/*id 20-36, textures*/   1,2,1,1,1,1,1,1,1,2,0,2,1, /*crafttable..cactus*/  3,4,4,4,2,1,255,0,1,0,2, /*iron,gold,diamond,redstone,coal,tnt,lit_tnt smoke,gravel,netherportal,nthrgldore*/
 	/*id 37-46, mobs*/       255,255,255,255,255,255,255,255,255,255
 };
-static uint8_t colors[(reg_block_num + 1) << 2] = {
+extern "C" {uint8_t colors[(reg_block_num + 1) << 2] = {
     /* Block ID:            0    1    2    3    4    5    6      7      8       9        10   11   12    13   14   15 */
     /* Block Name:        none grss stne wood leaf barr unlmp litlmp unbtn litbtn sand wool sgrs snow nthr obsd,   wterwrt irn gld dmnd rdstn*/
 
@@ -1075,6 +1107,7 @@ static uint8_t colors[(reg_block_num + 1) << 2] = {
     /* Channel 1 (y)light */  0,   5, 172, 238, 103, bg_color,   0,   0,   0,   0, 239, 247, 255, 255, 128,  74,   27,27,222,231,159,224,0,
     /* Channel 2 (z)drker */ 0, 131, 139,  97,   7, bg_color,   0,   0,   0,   0, 238, 181, 131, 247,  96,  1,   25,27,  213,230,31,192,0
 };
+}
 void change_bg(uint8_t color)
 {
 	bg_color=color;
@@ -1086,7 +1119,7 @@ void change_bg(uint8_t color)
 that is because the renderer flips all the textures in the y as a byproduct. it is slightly faster.**/
 
 // this v v v  is an array storing what sides of texture blocks go with what textures ^ ^ ^
-static const uint8_t* texturedata[]={
+const uint8_t* texturedata[]={
 	clear,clear,clear,clear,  clear,clear,clear,clear,  clear,clear,clear,clear,clear,clear,clear,clear, waterslabside,clear,waterslabside,clear, /*id 16-18: snowcarpet, redstonedustunlit, redstonedustlit - side/bottom transparent, top handled by floorcolors[]*/
 //                  crafting table                                             furnace                                             planks                                                               bed top                         glass                               doortopopen                               doorbottomeopen             doortopclosed                         doorbottomclosed                   magmablock                                        fire                             sandstone                                                  cactus                       iron                              gold                                            diamond                            redstone                                                           coal                        tnt             lit tnt(will toggle texture in main loop to flash)                   explosion                                 gravel                                    netherportal texture (the purple stuff)                    nether gold ore                                               skeletontopx                           skeletontopz                    skeletonbottom                                  sheepfacex                    sheepfacez                      sheepbackx                      sheepbackz                                           zombietopx                                                zombietopz                                            zombielegs                  
 	planksdarker,craftingtabletop,plankslighter,planksnorm,   furnacefront,cobblestone,furnacefront,cobblestone,  planksdarker,plankslighter,planksnorm,plankslighter, bedsidetop,bedtop,bedsidefront,bedtop,   glass, glass,glass,glass,  doorarch,brown,doorfronttop,brown,    doorbottomarch,clear,brown,brown, doorfronttop,brown,doorarch,brown, brown,clear,doorbottomarch,brown, magmablockx,magmablocky,magmablockx,magmablocky,       fire,firetop,fire,firetop, sandstonesidedarker,sandstonetop,sandstoneside,sandstonetop,     cactusside,cactustop,cactusside,cactustop ,ironorex,ironorey,ironorez,ironorey, goldorex,goldorey,goldorez,goldorey,    diamondorex,diamondorey,diamondorez,diamondorey, redstoneorex,redstoneorey,redstoneorez,redstoneorey,   coalorex,coalorey,coalorez,coalorey,   tntxz,tnty,tntxz,tnty,  tntxz,tnty,tntxz,tnty,                        explosionxyz,explosionxyz,explosionxyz,explosionxyz, graveltxt,graveltxt,graveltxt,graveltxt,   netherportaltxt,netherportaltxt,netherportaltxt,netherportaltxt,nethergoldorex,nethergoldorey,nethergoldorez,nethergoldorey,
@@ -2008,159 +2041,53 @@ int* ddatmaxz = getddatmaxz();
 		}\
 	}
 
+extern "C" int dda_deltax, dda_deltay, dda_deltaz;
+extern "C" int dda_tmaxx, dda_tmaxy, dda_tmaxz;
+extern "C" int DX, DY, DZ;
+extern "C" uint8_t* dda_currblock;
+extern "C" int fracmul_c(int delta, uint8_t k16);
 #define TRACE_COLUMN(pastenum,CONTMACRO)\
 	flint dx;dx.data=((*cx).data-sinxztdz.data);\
 	flint dz;dz.data=((*cz).data+cosxztdz.data);\
 	deltax= inv_tablel[dx.data];\
 	deltaz = inv_tablel[dz.data];\
 	\
-	tmaxx.data = deltax.data >> 1;\
-	tmaxy.data = deltay.data >> 1;\
-	tmaxz.data = deltaz.data >> 1;\
+	tmaxx.data = fracmul_c(deltax.data, (dx.data>0) ? fr_kxp : fr_kxn);\
+	tmaxz.data = fracmul_c(deltaz.data, (dz.data>0) ? fr_kzp : fr_kzn);\
+	tmaxy.data = tmaxy0;\
 	\
-	uint8_t quadrant = (dx.data>0) | tdy_bit | ((dz.data > 0)<<2);\
+	uint8_t quadrant = (dx.data>0) + tdy_bit + ((dz.data > 0)<<2);\
 	\
 		uint8_t* curr_block = w;\
 	static uint8_t CONCAT(d,pastenum);\
 	cx+=res*2;\
 	cz+=res*2;\
-	*ddadeltax=deltax.data;\
-	*ddadeltay=deltay.data;\
-	*ddadeltaz=deltaz.data;\
-	*ddatmaxx=tmaxx.data;\
-	*ddatmaxy=tmaxy.data;\
-	*ddatmaxz=tmaxz.data;\
-	CONCAT(start_loop,pastenum):\
+	dda_deltax=deltax.data;\
+	dda_deltay=deltay.data;\
+	dda_deltaz=deltaz.data;\
+	dda_tmaxx=tmaxx.data;\
+	dda_tmaxy=tmaxy.data;\
+	dda_tmaxz=tmaxz.data;\
+	DX=dx.data;\
+	DY=tdy.data;\
+	DZ=dz.data;\
+	/*CONCAT(start_loop,pastenum):*/\
 	*ddacurrblock=curr_block;\
 	CONCAT(d,pastenum)=ASM_DDA_FULL(quadrant);\
-	if (CONCAT(d,pastenum)==3)\
-	{\
-		tempval+=res*2;\
-		goto CONCAT(dda_done,pastenum);\
-	}\
-	curr_block=*ddacurrblock;\
-	{\
-	uint8_t id=*curr_block;\
-	uint8_t tcolor;\
-	if (id<reg_block_num+1)\
-	{\
-		tcolor=lcolors[(id)+CONCAT(d,pastenum)];\
-	}\
-	else\
-	{\
-		tmaxx.data=*ddatmaxx;\
-		tmaxy.data=*ddatmaxy;\
-		tmaxz.data=*ddatmaxz;\
-		if(id<=FLOORVOXELSEND)/*like carpets or redstone or pressure plates and stuff*/\
-		{\
-			if(id>=SLABSTART)\
-			{\
-				if(tdy<0)\
-				{\
-					tmaxy.data-=deltay.data>>1;\
-					if(tmaxy<tmaxx)\
-					{\
-						if(tmaxy<tmaxz)\
-						{\
-							*colortorect=floorcolors[id];\
-							optomized_raycast_rect_5x5();\
-							CONTMACRO;\
-							continue;\
-						}\
-					}\
-				}\
-				else if((uint8_t)CONCAT(d,pastenum)==reg_block_num+1)/*bottom*/\
-				{\
-					*colortorect=floorcolors[id];\
-					optomized_raycast_rect_5x5();\
-					CONTMACRO;\
-					continue;\
-				}\
-			}\
-			else{\
-				if(tmaxy<tmaxx)\
-				{\
-					if(tmaxy<tmaxz)\
-					{\
-						if(tdy<0)\
-						{\
-							*colortorect=floorcolors[id];\
-							optomized_raycast_rect_5x5();\
-							CONTMACRO;\
-							continue;\
-						}\
-					}\
-				}\
-				goto CONCAT(start_loop,pastenum);\
-			}\
-		}\
-		switch ((uint8_t)CONCAT(d,pastenum)) {\
-			case 0:\
-			{\
-				tmaxx-=deltax;\
-				flint tzf=mlt32(dz,tmaxx)+((int)plz)+half;\
-				flint tyf=mlt32(tdy,tmaxx)+((int)ply)+half;\
-				int tz= (tzf.data&511)>>6;\
-				int ty = (tyf.data >> 3) & 0x38;\
-				tcolor=ltexturedata[id<<2][(tz)+ty];\
-				if (tcolor==26)\
-				{\
-					tmaxx+=deltax;\
-					goto CONCAT(start_loop,pastenum);\
-				}\
-				break;\
-			}\
-			case (reg_block_num+1):\
-			{\
-				tmaxy-=deltay;\
-				flint txf=mlt32(dx,tmaxy)+((int)plx)+half;\
-				flint tzf=mlt32(dz,tmaxy)+((int)plz)+half;\
-				int tx=((txf.data)&511)>>6;\
-				int tz = (tzf.data >> 3) & 0x38;\
-				tcolor=ltexturedata[(id<<2)+1][(tx)+tz];\
-				if (tcolor==26)\
-				{\
-					tmaxy+=deltay;\
-					goto CONCAT(start_loop,pastenum);\
-				}\
-				break;\
-			}\
-			case 2*(reg_block_num+1):\
-			{\
-				tmaxz-=deltaz;\
-				flint txf=(mlt32(dx,tmaxz))+((int)plx)+half;\
-				flint tyf=(mlt32(tdy,tmaxz))+((int)ply)+half;\
-				int tx=((txf.data)&511)>>6;\
-				int ty = (tyf.data >> 3) & 0x38;\
-				tcolor=ltexturedata[(id<<2)+2][(tx)+ty];\
-				if (tcolor==26)\
-				{\
-					tmaxz+=deltaz;\
-					goto CONCAT(start_loop,pastenum);\
-				}\
-				break;\
-			}\
-		}\
-	}\
-	*colortorect=tcolor;\
-	}\
-	/*#if res == 8\*/\
-		optomized_raycast_rect_5x5();\
-	/*#elif res==5\
-		optomized_raycast_rect_5x5();\
-	#endif\*/\
-	CONCAT(dda_done,pastenum): ;/*if((uint24_t)(curr_block - w) < WX*WY*WZ)//saying if <0, wrap to big val and if to big is not <*/\
+
 	
 //#define mlt32(a, b) ((int) ( ( (int32_t)(a.data) * (int32_t)(b.data) ) >> shift_by) )
 #define mlt32(a,b) a*b
 //#define mlt32(a,b) ([&]{ flint r; r.data=(int)(((int32_t)(a).data*(int32_t)(b).data)>>shift_by); return r; }())
 extern "C" void rect_8x8(int x, uint8_t y, uint8_t color, uint8_t* screenaddr);
+extern "C" { extern int row_sin,row_cos,row_tmaxy,row_w,col_cx,col_cz,DY;
+                  extern uint8_t row_tdybit;  void raycast_cols_A(); }
 extern "C" uint8_t* getscratch3();
 extern "C" uint8_t** getrectaddr();
 extern "C" void optomized_raycast_rect_8x8();
 extern "C" void optomized_raycast_rect_5x5();
 extern "C" void optomized_raycast_rect_5x5_no2();
-
+extern "C" int PX, PY, PZ;
 
 extern "C" void notfullfillscreen(uint8_t color,uint8_t* screenaddr);
 extern "C" void rect8x8complete(uint8_t* screenaddr);
@@ -2168,6 +2095,20 @@ extern "C" void rect8x8complete(uint8_t* screenaddr);
 
 
 //__attribute__((section(".ramfunc"), noinline))
+extern "C" {
+	const uint8_t** ltexturedata = (texturedata - ((reg_block_num+1) << 2));//the typing was a const uint8_t*[].
+}
+// ---- pass A column loop lives in stuff.asm (_raycast_cols_A). These are its per-row inputs.
+// (3-byte values are int on the eZ80.)  inv_table must be a NON-static global pointer (asm reads _inv_table).
+extern "C" {
+	extern int row_sin, row_cos, row_tmaxy, row_w, col_cx, col_cz;
+	extern uint8_t row_tdybit;
+	void raycast_cols_A();
+	void save_shadow_bc();
+	void restore_shadow_bc();
+}
+extern "C" void raycast_cols_B();
+extern "C" void raycast_cols_A2();
 void raycast_screen()
 {
 	/** this draws everything. This is kinda complicated, because it needs to be fast. It uses raycasting, but instead of being 2.5d it is 
@@ -2189,6 +2130,11 @@ void raycast_screen()
 	Another thing: I didn't copy/paste really any ai code (mostly because it wasn't going to work, and with an exception for like one or two uncomplicated lines) so really i wrote almost all of
 	this code. If you count AI suggestions (like using less variables), those probably made it 1.5x as fast, even though it was me who wrote the code. And not a stare at it's code and "write" it -- I actually wrote the logic.**/
 	__asm__ volatile ("di");//get rid of instruction stalling maybe
+	save_shadow_bc();//the asm DDA uses b' as its step counter
+	update_frac();
+	PX=(int)plx;
+	PY=(int)ply;
+	PZ=(int)plz;
 	uint8_t** tempval1=getrectaddr();
 	auto& tempval=*tempval1;
 	tempval=&gfx_vbuffer[0][0];
@@ -2243,7 +2189,7 @@ void raycast_screen()
 	flint* inv_tablel=&inv_table[0];
 	//int y=200;
 	const uint8_t* lcolors=colors;
-	auto ltexturedata = (texturedata - ((reg_block_num+1) << 2));//the typing was a const uint8_t*[]. idk how to do that.
+	
 	//-reg_block_num+1 because otherwise i'd have to say -reg_block_num+1 for every texture thing to convert the id for the array
 	//<<2 because do id <<2
 	
@@ -2274,47 +2220,38 @@ void raycast_screen()
 		uint8_t tdy_bit=((tdy.data>0)<<1);
 		auto temp=tempval;
 		#define NOTHING ;
-		for(unsigned int x=0; x<320;x+=res*2){
-
-			TRACE_COLUMN(0,NOTHING);
-		}
-		auto temp2=tempval;
-		cx = &cache[0+res];
-		cz = &cache[320+res];
-		tempval=temp;
-		tempval+=res;
-		//I know, it wraps around at the end... Not very noticable though so... it stays!
-		for(unsigned int x=res; x<320;x+=res*2){
-
-			uint8_t color=*(tempval-1);
-			if(color==*(tempval+res+1))
-			{
-				*colortorect=color;
-				#if res==5
-					optomized_raycast_rect_5x5();
-				#else
-					optomized_raycast_rect_8x8();
-				#endif
-				cx+=res*2;
-				cz+=res*2;
-				//tempval+=res*2;
-			}
-			else
-			{
-				TRACE_COLUMN(1,NOTHING);
-			}
-		}
+		// pass A (x = 0,10,..310) runs entirely in asm. It computes dx/dz, deltax/z, tmax, quadrant,
+		// sets _DX/_DZ and _dda_deltax/z itself, and advances rectaddr (tempval) by 10 per column.
+		row_sin=sinxztdz.data;
+		row_cos=cosxztdz.data;
+		int tmaxy0=KMUL(deltay.data,KSEL(fry,tdy.data));
+		row_tmaxy=tmaxy0;
+		row_tdybit=tdy_bit;
+		row_w=(int)w;
+		col_cx=(int)&cache[0];
+		col_cz=(int)&cache[320];
+		dda_deltay=deltay.data;
+		
+		DY=tdy.data;
+		raycast_cols_A();
+		auto temp2=tempval;                  // = row start + 320 after raycast_cols_A
+		tempval=temp+res;
+		col_cx=(int)&cache[res];
+		col_cz=(int)&cache[320+res];
+		raycast_cols_A2();                   // 32 columns, rectaddr += 320
 		tempval=temp2;
 		tempval+=(320*(res-1))+320*res;
 	}
-	tempval=&gfx_vbuffer[res][0];
+	tempval=&gfx_vbuffer[res][0];	
 	for (unsigned int y=res; y<184;y+=res*2){
 		flint tdy = cached_y_dir[y];	
 		flint ny;ny=tdy;
 		tdy=(cosyz*ny-sinyz);//dz is 1 so don't mult yet
 		flint tdz=(sinyz*ny+cosyz);//yz
 		deltay= inv_tablel[tdy.data];
-		
+		//claude look at this v v v is this right? i guessed with this bcs was not compiling
+		int tmaxy0=KMUL(deltay.data,KSEL(fry,tdy.data));
+		row_tmaxy=tmaxy0;
 		flint sinxztdz;sinxztdz.data=(sinxz.data*tdz.data)>>shift_by;
 		flint cosxztdz;cosxztdz.data=(cosxz.data*tdz.data)>>shift_by;
 		flint *cx = &cache[0];
@@ -2322,38 +2259,22 @@ void raycast_screen()
 		//dbg_printf("y: %d, addr: %p\n",y, tempval);
 		//#pragma clang loop unroll_count(5)
 		uint8_t tdy_bit=((tdy.data>0)<<1);
-		#define NOTNOTHING tempval-=res;\
-				cx-=res;\
-				cz-=res;
-		for(unsigned int x=0; x<320;x+=res){
 
-			uint8_t color=*(tempval-320);//one row above
-			if(color==*(tempval+(320*(res+1))))
-			{
-				*colortorect=color;
-				#if res==5
-					optomized_raycast_rect_5x5_no2();
-				#else
-					optomized_raycast_rect_8x8();
-					tempval-=res;
-				#endif
-				//gfx_SetColor(color);
-				//gfx_FillRectangle_NoClip(x,y,res,res);
-				cx+=res;
-				cz+=res;
-				
-				//tempval+=res*2;
-			}
-			else
-			{
-				TRACE_COLUMN(3,NOTNOTHING);
-				tempval-=res;
-				cx-=res;
-				cz-=res;
-			}
-		}
+		row_sin=sinxztdz.data;
+		row_cos=cosxztdz.data;
+		row_tmaxy=tmaxy0;
+		row_tdybit=tdy_bit;
+		row_w=(int)w;
+		col_cx=(int)&cache[0];
+		col_cz=(int)&cache[320];
+		dda_deltay=deltay.data;
+		DY=tdy.data;
+		raycast_cols_B();                       // 64 columns, advances rectaddr by 320
 		tempval+=(320*(res-1))+320*res;
+		
 	}
+
+	restore_shadow_bc();
 	__asm__ volatile ("ei");
 
 }
@@ -2596,7 +2517,7 @@ void generate_world_underground()
 							goto next;
 						}
 						vis_map(ox,oy,oz)=0;//255;
-						if(!randInt(0,400))
+						if(!randInt(0,40*(1<<MOVESHIFT)))
 						{
 							vis_map(ox,oy,oz)=WATERBLOCK;
 							add_update(&vis_map(ox,oy,oz));
@@ -4004,11 +3925,12 @@ void save_world(char* wname,uint8_t nrealm=0)
 	bool test=ti_Resize(totalsize,worldslot);
 	if(!test)
 	{
-		gfx_FillScreen(bg_color);
+		//gfx_FillScreen(bg_color);
+		gfx_SetDrawScreen();
 		gfx_SetTextFGColor(224); // Assuming 224 is Red in your palette
-		gfx_SetTextXY(10, 10);
+		gfx_SetTextXY(0, 230);
 		gfx_PrintString("NOT ENOUGH RAM!!! Archiving some stuff...");
-		gfx_SwapDraw();
+		gfx_SetDrawBuffer();
 		msleep(1000);
 		ti_Close(worldslot);
 		superstop=true;
@@ -4025,11 +3947,12 @@ void save_world(char* wname,uint8_t nrealm=0)
 			goto resize;
 		}
 		//ok, now everything is screwed because can't save world.
-		gfx_FillScreen(bg_color);
+		//gfx_FillScreen(bg_color);
+		gfx_SetDrawScreen();
 		gfx_SetTextFGColor(224); // Assuming 224 is Red in your palette
-		gfx_SetTextXY(10, 10);
+		gfx_SetTextXY(0, 230);
 		gfx_PrintString("Unable to save world");
-		gfx_SwapDraw();
+		gfx_SetDrawBuffer();
 		worldslot=ti_Open(wname,"w");
 		if(ti_Resize(oldsize,worldslot))
 		{
@@ -4333,6 +4256,7 @@ void loadnewchunk()
 	{
 		is_chunk=false;
 	}
+	srand(rtc_Time()+clock());
 }
 //claude wrote this v v v
 void draw_portal(uint8_t sx, uint8_t sy, uint8_t sz)
@@ -4615,7 +4539,7 @@ void gc_before(void)
 {
 	gfx_End();
 }
-
+extern "C" void init_cursor_dda();
 void gc_after(void)
 {
 	gfx_Begin();
@@ -4627,6 +4551,7 @@ void gc_after(void)
 	gfx_SetTextTransparentColor(26);
 	MNCFTIMG_init();
 	updatehotbar=2;
+	init_cursor_dda();//5
 }
 
 int break_block(uint8_t* block)
@@ -4826,8 +4751,9 @@ void build_visible_ids()
         if(!hide_in_inventory[i])
             visible_ids[num_visible++]=i;
 }
+
 int main(void){
-		
+	int dt=1;
 	// in main(), before the game loop:
 	hide_in_inventory[BARRIER]=true;
 	hide_in_inventory[UNLITLAMP]=true;
@@ -4847,7 +4773,7 @@ int main(void){
 	hide_in_inventory[NETHERPORTAL]=true;
 
 	auto *data_ptr = os_GetAppVarData("MNCFTIMG", NULL);
-
+    
 	if (data_ptr == NULL)//no asset file
 	{
 		os_ClrHome();
@@ -5235,6 +5161,7 @@ int main(void){
 		{
 			inv_table[i] = fl256/i;// i/(i/512) = 512/i
 			inv_table[i].data=fast_abs(inv_table[i].data);
+			inv_table[i].data = fast_abs(inv_table[i].data)<16384? fast_abs(inv_table[i].data): 16384;
 		}
 	}
 
@@ -5308,7 +5235,7 @@ int main(void){
 	//vis_map(1,2,1)=reg_block_num+7;
 	dbg_printf("starting loop\n\n");
 	int mining_timer=0;
-	unsigned int frame=AVERAGEFPS*5-1;//make sure starts off doing frame stuff
+	unsigned int frame=15;//make sure starts off doing frame stuff
 	int32_t start_time=clock();
 	gstarttime=&start_time;
 	
@@ -5333,8 +5260,9 @@ int main(void){
 	clock_t last_update = clock();
 	clock_t last_place = clock();
 	clock_t last_world_tick=clock();
-	//std::clock_t t1=1;
+	std::clock_t t1=1;
 	//uint8_t update_count=0;
+	init_cursor_dda();
 	while (1)
 	{		
 		
@@ -5513,6 +5441,10 @@ int main(void){
 			auto ct=clock();
 			if(ct-last_world_tick> CLOCKS_PER_SEC / 4)
 			{
+				if(realm==0)
+				{
+					manage_nocturnal_vmobs(vmob_pool, VMOB_POOL_SIZE,  wtime, 3);
+				}
 				update_all_mobs();
 				call_update();
 				//player damage stuff
@@ -5539,7 +5471,23 @@ int main(void){
 				}
 				last_world_tick=ct;
 			}
-			if(ct-last_update> CLOCKS_PER_SEC / 7)//happens 7 times a second
+			
+				
+			if (kb_IsDown(kb_Key2nd)) 
+			{
+				int ndt=dt>>2;
+				/*for(int i=0;i<(1<<MOVESHIFT);++i) */try_walk((dirx*ndt)>>(12-MOVESHIFT), (dirz*ndt)>>(12-MOVESHIFT));   // and the -dirx version for alpha
+			}
+			else if (kb_IsDown(kb_KeyAlpha)) {
+				int ndt=-(dt>>2);
+				/*for(int i=0;i<(1<<MOVESHIFT);++i) */try_walk((dirx*ndt)>>(12-MOVESHIFT), (dirz*ndt)>>(12-MOVESHIFT));   // and the -dirx version for alpha
+			}
+			
+			if(ply>WY-1)
+				ply=WY-1;
+			if(ply<0)
+				ply=0;
+			if(ct-last_update> 4096)//happens 8 times a second
 			{
 				
 				auto ltexturedata = (texturedata - ((reg_block_num+1) << 2));
@@ -5557,26 +5505,6 @@ int main(void){
 					ltexturedata[tempid+2]=grey;
 				}
 				
-				if(realm==0)
-				{
-					manage_nocturnal_vmobs(vmob_pool, VMOB_POOL_SIZE,  wtime, 3);
-				}
-				
-				
-				if (kb_IsDown(kb_Key2nd)) 
-				{
-					try_walk(dirx,dirz);
-					last_update=clock();
-				}
-				else if (kb_IsDown(kb_KeyAlpha)) {
-					try_walk(-dirx,-dirz);
-					last_update=clock();
-				}
-				
-				 if(ply>WY-1)
-					 ply=WY-1;
-				 if(ply<0)
-					 ply=0;
 				 if ((kb_Data[3] & kb_GraphVar)||is_in_crafting_table) {//xton
 					while (kb_Data[3] & kb_GraphVar)
 					{
@@ -6192,23 +6120,7 @@ int main(void){
 
 						
 						if (id){
-							if(id==DOORTOPOPEN)
-							{
-								uint8_t* bottomblock=block-YJ;//down one in y
-								if(*bottomblock)//is not zero (aka can't place door bcs block is there or trying to place door at base)
-								{
-									dbg_printf("base/no space detected!\n");
-									block+=YJ;//up one in y, seeing if was placing at base
-									bottomblock+=YJ;
-									if(*block)//wasn't placing at base								
-										goto endplace;
-									dbg_printf("base detected!\n");
-								}
-								//if here can place door.
-								//will only place bottom because down there will place top.
-								//update_changes(DOORBOTTOMOPEN,bottomblock);
-								*bottomblock=DOORBOTTOMOPEN;
-							}
+							
 							
 							//update_changes(id,block);
 							uint8_t x, y,z;
@@ -6216,6 +6128,23 @@ int main(void){
 							bool samexz=(int)plx==x&&(int)plz==z;
 							if(!((vis_map((int)plx,(int)ply+1,(int)plz)&&y==(int)ply-1&&samexz)||(samexz&&ply==y)))//if there is not (block above player's head and they are placing block at feet)
 							{
+								if(id==DOORTOPOPEN)
+								{
+									uint8_t* bottomblock=block-YJ;//down one in y
+									if(*bottomblock)//is not zero (aka can't place door bcs block is there or trying to place door at base)
+									{
+										dbg_printf("base/no space detected!\n");
+										block+=YJ;//up one in y, seeing if was placing at base
+										bottomblock+=YJ;
+										if(*block)//wasn't placing at base								
+											goto endplace;
+										dbg_printf("base detected!\n");
+									}
+									//if here can place door.
+									//will only place bottom because down there will place top.
+									//update_changes(DOORBOTTOMOPEN,bottomblock);
+									*bottomblock=DOORBOTTOMOPEN;
+								}
 								*block=id;
 								add_updates_fully(block);
 								inventory[id]--;
@@ -6241,7 +6170,8 @@ int main(void){
 					ply+=1;
 			}
 			if (walk_thru_block(vis_map((int)plx,(int)ply-2,(int)plz))||grav<0){
-				grav+=grav_amount;
+				
+				grav+=(grav_amount*dt)>>12;
 				ply-=grav;
 				temp2=vis_map((int)plx,(int)ply,(int)plz);
 				if (!walk_thru_block(temp2))//if head stuck in wall
@@ -6266,7 +6196,10 @@ int main(void){
 					}
 				}
 				else
+				{
 					grav=0;
+					ply.data=(((ply.data)>>9)<<9)+256;
+				}
 			}
 			//dbg_printf("frame!,%d,%d",rotxz,rotyz);
 			if(kb_IsDown(kb_KeyApps))
@@ -6279,13 +6212,16 @@ int main(void){
 			dbg_printf("raycast: ply %d (int %d)\n", ply.data, (int)ply);
 			raycast_screen();
 			
-			//std::clock_t t2 = std::clock();
+			std::clock_t t2 = std::clock();
 			
-			/*
-			gfx_SetTextXY(0,100);
-			gfx_PrintString("FPS: ");
-			uint8_t fps=(int)((float)32768/(t2-t1)*10);
+			
+			//gfx_SetTextXY(0,100);
+			//gfx_PrintString("FPS: ");
+			dt=(t2-t1);
+			
+			//uint8_t fps=(int)((float)32768/dt*10);
 			t1 = std::clock();
+			/*
 			gfx_PrintInt(fps/10,1);
 			gfx_PrintString(".");
 			gfx_PrintInt(fps%10,1);

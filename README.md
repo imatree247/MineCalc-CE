@@ -14,7 +14,7 @@ The game is still a work in progress and I highly recommend playing with a high 
 
 One more thing to mention: in the crafting screen, you have to align all of your crafting recipies to the top left corner of the crafting table because I am NOT going to make like 5 recipies for each item. One other thing to mention: if you play the game for over 17 hours straight, I am pretty sure one of my clock variables will overflow and either the daylight cycle will look really weird or the game will crash. I have no idea. I have not tested it and don't plan to. I don't know why you would play it for that long but please don't.
 
-If you find a bug that is not in the list of bugs please email me at sneakybiscuit24633@gmail.com. If you fix or know how to fix a bug, you can also email me. The only reasons I won't fix a bug is if it is too hard to fix or makes the game slower.
+If you find a bug, please email me at sneakybiscuit24633@gmail.com. If you fix or know how to fix a bug, you can also email me. The only reasons I won't fix a bug is if it is too hard to fix or makes the game slower.
 
 To run the game, first download TI Connect CE or visit a website like ticalc.link. If your OS is later than 5.5, you need the arTIfiCE jailbreak*. This will let you run assembly programs. Third, download the MINECALC.8xp file and the MNCFTIMG.8xv assets file from the bin folder and send both to the calculator. You NEED the asset file.
 
@@ -88,7 +88,7 @@ One last thing: I did use generative AI (free account on Claude) to help with th
 
 Another last thing: you are free to use my code for something as long as you provide a link or something AND don't just copy my entire game(aka make a Minecraft clone). I tried to add some comments in my code to make it more readable. 
 
-Special thanks to: Sean for being an amazing playtester (and for making some of the textures) and my little brother for making me the diamond item image for the game. Also, special thanks to all the people who made coding C++ for the ti 84 plus ce possible at all. 
+Special thanks to: Sean ("the potato") for being an amazing playtester (and for making some of the textures) and my little brother for making me the diamond item image for the game. Also, special thanks to all the people who made coding C++ for the ti 84 plus ce possible at all. 
 
 Ok, you can stop reading now. The rest is just stuff I thought was cool (from a perspective of a calculator nerd) I did in my code.
 

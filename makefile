@@ -1,9 +1,9 @@
 NAME        = MINECALC
 ICON        = icon.png
-DESCRIPTION = "Fully 3D Minecraft like game for the TI-84 + CE! And it even runs at around 7 FPS!!!"
+DESCRIPTION = "Fully 3D Minecraft like game for the TI-84 + CE! And it even runs at around 9 FPS!!!"
 COMPRESSED  = YES
 ARCHIVED    = YES
-OUTPUT_MAP = YES
+#OUTPUT_MAP = YES
 # --- CRITICAL FOR SPEED ---
 # -ffast-math: Speeds up float math (ignores tiny IEEE errors)
 # -fomit-frame-pointer: Frees up a register (IX) for logic instead of stack tracking
@@ -15,7 +15,7 @@ LTO = YES
 
 # Use the toolchain's faster C libraries instead of the calculator's slow OS calls
 PREFER_OS_LIBC = NO
-COMPRESSED_MODE = zx7
+COMPRESSED_MODE = zx0
 # ----------------------------
 
 include $(shell cedev-config --makefile)
