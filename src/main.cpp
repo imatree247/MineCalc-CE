@@ -2198,7 +2198,7 @@ void raycast_screen()
 	static flint tmaxy;//for some reason, when i declare some variables as static it gets much faster
 	static flint tmaxz;
 	static flint deltax;
-	static flint deltay;//gohere
+	static flint deltay;
 	flint deltaz;//but not all variables
 	//basically, i made one x and one z not static because only two variables not being static holds up
 	//the best performance, but i didn't want looking in one direction to be slower so i tried to split it
@@ -5225,7 +5225,6 @@ int main(void){
 	//dbg_printf("generating world...\n");
 	//generate_chunk(world);
 	//dbg_printf("generated world!\n");
-	//gohere working on textures. some crazy mirror stuff, but that isn't too bad. only shows part of texture sometimes.
 	//BUG IN DOOR! SHEEP
 	//can't fix ^ ^ ^ fisheye distorition by noneuclidean distance (taxicab). TODO: rasterization baby!!!! but first chunking :(
 	//also, need more textured blocks.
@@ -5755,6 +5754,7 @@ int main(void){
 								cursorblock=0;
 							}
 						}
+						keyup(kb_KeyEnter);
 					}
 					
 					if (kb_IsDown(kb_KeyDown))
@@ -6035,13 +6035,13 @@ int main(void){
 					//dbg_printf("player hard: %d, block hard: %d, temp2: %d block: %p\n",temp,hardness[*block],temp2,block);
 					if (block!=NULL&&*block!=BARRIER&&hardness[*block]<255){// if hit block and block is not barrier
 						
-						mining_timer--;
+						mining_timer-=dt;
 						if(block!=mining_block)
 							prevkeydel=true;
 						bv=*block;//block value
 						mining_block=block;
 						if(prevkeydel)
-							mining_timer=(hardness[bv]*AVERAGEFPS)/temp;//sorry about using division!
+							mining_timer=((hardness[bv])/temp)<<15;//sorry about using division!
 						prevkeydel=0;
 							if(mining_timer<=0){
 								prevkeydel=1;
