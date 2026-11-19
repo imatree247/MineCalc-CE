@@ -4834,7 +4834,7 @@ int main(void){
 		"Create New",
 		"Open World",
 		"Delete World",
-		"Veiw Controls (HIGHLY recommended if new)",
+		"View Controls (HIGHLY recommended if new)",
 	};
 	
 	uint8_t* header=(uint8_t*)world;
